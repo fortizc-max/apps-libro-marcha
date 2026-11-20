@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ciclo de marcha sagital</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Versión 3 (17-11-2026). Revisión externa del 17-11-2026 aplicada: potencia = momento × velocidad angular;
+   ángulos ajustados a las curvas normativas del libro; fases como controles; vista básica y avanzada.
+   Lados: azul = derecho (referencia), rojo = izquierdo. Activación: un solo tono, solo temporalidad. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#18231f; --muted:#5d6b66; --line:#d5ddd9; --stance:#e7eeeb;
+  --right:#1565C0; --left:#C62828; --act:#E65100; --cursor:#18231f; --focus:#1565C0; --warn:#8a5a00;
+  --pel:#546E7A; --hip:#00897B; --knee:#7a8a2e; --ankle:#6b4f9e; --mom:#455a64;
+  --f-display:"Literata", Georgia, "Times New Roman", serif;
+  --f-body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18211e; --ink:#e4ece8; --muted:#97a6a0; --line:#2c3833; --stance:#1d2925;
+  --right:#64a6f0; --left:#ef7070; --act:#ff8a3d; --cursor:#e4ece8; --focus:#64a6f0; --warn:#e0b050;
+  --pel:#9fb3bd; --hip:#4db6ac; --knee:#b8c75a; --ankle:#a98be0; --mom:#b0bec5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18211e; --ink:#e4ece8; --muted:#97a6a0; --line:#2c3833; --stance:#1d2925;
+  --right:#64a6f0; --left:#ef7070; --act:#ff8a3d; --cursor:#e4ece8; --focus:#64a6f0; --warn:#e0b050;
+  --pel:#9fb3bd; --hip:#4db6ac; --knee:#b8c75a; --ankle:#a98be0; --mom:#b0bec5; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1500px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 90px max(16px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 18px}
+header h1{font-family:var(--f-display);font-weight:650;font-size:clamp(1.35rem,2.6vw,1.8rem);margin:0;letter-spacing:-.01em}
+header p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.side-r{color:var(--right);font-weight:600} .side-l{color:var(--left);font-weight:600}
+.warn{font-size:13px;color:var(--warn);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--surface);padding:6px 14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:14px;align-items:start}
+.left{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;position:sticky;top:10px}
+.right{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media (max-width:980px){.cols{grid-template-columns:minmax(0,1fr)}.left{position:static}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+canvas{display:block;width:100%;height:auto;border-radius:6px;background:var(--surface)}
+button,select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:6px 11px;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.phases{display:grid;grid-template-columns:10fr 20fr 20fr 10fr 13fr 14fr 13fr;margin-top:8px;border-radius:5px;overflow:hidden;gap:1px;background:var(--line)}
+.phases button{border:0;border-radius:0;padding:6px 0;font-family:var(--f-data);font-size:11.5px;background:var(--stance);color:var(--ink);white-space:nowrap;overflow:hidden}
+.phases button.sw{background:var(--surface)}
+.phases button.on{background:var(--ink);color:var(--surface);font-weight:600}
+.events{position:relative;height:18px;font-family:var(--f-data);font-size:10px;color:var(--muted);margin-top:3px}
+.events span{position:absolute;top:2px;transform:translateX(-50%);white-space:nowrap}
+.events span::before{content:"";position:absolute;left:50%;top:-4px;height:4px;border-left:1px solid var(--muted)}
+.events span.conv{font-style:italic}
+.events span:first-child{transform:none} .events span:first-child::before{left:0}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+#play{min-width:100px;font-weight:600}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--ink)}
+.pct{font-family:var(--f-data);font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}
+.lbl{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+#phName{font-family:var(--f-display);font-size:1.3rem;font-weight:650;margin:2px 0 2px}
+#evName{font-size:12.5px;font-weight:600;min-height:1.2em}
+#contra{font-size:13px;color:var(--muted);margin:2px 0 8px}
+dl.fx{display:grid;grid-template-columns:max-content 1fr;gap:4px 10px;margin:0 0 8px}
+dl.fx dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:3px}
+dl.fx dd{margin:0;max-width:64ch}
+details.q{border-top:1px solid var(--line);padding-top:6px;margin-top:6px}
+details.q summary{cursor:pointer;font-weight:600;font-size:14px}
+details.q p{margin:4px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:8px;border:1px solid var(--line);border-left:5px solid var(--act);background:var(--surface);text-align:left}
+.chip[aria-pressed="true"]{outline:2px solid var(--act);outline-offset:1px}
+.chip.none{border-left-color:var(--line);color:var(--muted)}
+#musInfo{font-size:13.5px;margin:8px 0 0;min-height:1.3em}
+h2{font-family:var(--f-display);font-weight:650;font-size:1.1rem;margin:0 0 4px}
+.note{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+.jsel{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.jsel button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+@media (max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){dl.fx{grid-template-columns:minmax(0,1fr)}dl.fx dd{margin-bottom:4px}.phases button{font-size:10px}}
+.plot h3{margin:0 0 2px;font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.plot h3 span{font-family:var(--f-data);font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--f-data);font-size:9px;fill:var(--muted)}
+.kin-row{display:grid;grid-template-columns:110px repeat(2,minmax(0,1fr));gap:6px 16px;align-items:center;margin-bottom:6px}
+.kin-row .rl{font-weight:600;font-size:14px}
+@media (max-width:600px){.kin-row{grid-template-columns:1fr}}
+details.meth summary,details.tab summary{cursor:pointer;font-family:var(--f-display);font-weight:650;font-size:1.05rem}
+.tw{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted)}
+#qa{font-family:var(--f-data);font-size:11.5px;color:var(--muted);margin:6px 0 0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.meth p,.meth li{font-size:13px;color:var(--muted)} .meth ul{padding-left:18px;margin:4px 0}
+body:not(.adv) .adv-only{display:none!important}
+body.adv .basic-only{display:none!important}
+/* barra fija en el teléfono: la figura y las gráficas quedan separadas al desplazarse */
+#mini{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:none;align-items:center;gap:8px}
+#mini .mph{font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34%}
+@media (max-width:980px){#mini.show{display:flex}}
+@media (min-width:981px){.wrap{padding-bottom:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Ciclo de marcha en el plano sagital</h1>
+      <p>Miembro <span class="side-r">derecho en azul</span> (referencia del ciclo) e <span class="side-l">izquierdo en rojo</span>. <span class="warn">Modelo ilustrativo; no representa valores de referencia.</span></p>
+    </div>
+    <div class="seg" role="group" aria-label="Vista">
+      <button type="button" id="vBas" aria-pressed="true">Vista básica</button>
+      <button type="button" id="vAdv" aria-pressed="false">Vista avanzada</button>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="left">
+      <div class="panel" id="stagePanel">
+        <canvas id="stage" width="720" height="440" role="img" aria-label="Figura que camina en el plano sagital; el miembro derecho, en azul, muestra la activación muscular esquemática"></canvas>
+        <div class="phases" id="phases" role="group" aria-label="Fases del ciclo: pulse una para detenerse en ella"></div>
+        <div class="events" id="events" aria-hidden="true"></div>
+        <div class="controls">
+          <button id="play" type="button">Pausar</button>
+          <button id="evPrev" type="button" aria-label="Evento anterior">◀ Evento</button>
+          <button id="evNext" type="button" aria-label="Evento siguiente">Evento ▶</button>
+          <button id="back" type="button" aria-label="Retroceder un cuadro">◀ 1 %</button>
+          <button id="fwd" type="button" aria-label="Avanzar un cuadro">1 % ▶</button>
+          <label class="chk"><input type="checkbox" id="loopPh"> Repetir esta fase</label>
+        </div>
+        <div class="controls">
+          <input id="scrub" type="range" min="0" max="100" step="0.5" value="0" aria-label="Porcentaje del ciclo">
+          <span class="pct" id="pct">0 %</span>
+          <label class="lbl adv-only">Reproducción
+            <select id="speed">
+              <option value="0.25">0,25×</option>
+              <option value="0.5" selected>0,5×</option>
+              <option value="1">1× (ciclo de 1,1 s)</option>
+            </select></label>
+          <button id="fs" type="button" class="adv-only">Pantalla completa</button>
+          <label class="chk adv-only"><input type="checkbox" id="dbg"> Mostrar contactos</label>
+        </div>
+        <p id="qa" hidden></p>
+      </div>
+
+      <div class="panel" id="infoPanel" aria-live="off">
+        <div class="eyebrow" id="phRange"></div>
+        <div id="phName"></div>
+        <div id="evName"></div>
+        <div id="contra"></div>
+        <dl class="fx">
+          <dt>Objetivo</dt><dd id="fxObj"></dd>
+          <dt>Movimiento</dt><dd id="fxMov"></dd>
+          <dt>Mecanismo</dt><dd id="fxMec"></dd>
+        </dl>
+        <details class="q" id="qBox"><summary id="qTxt"></summary><p id="qAns"></p></details>
+        <div class="eyebrow" style="margin:10px 0 6px">Grupos musculares activos en este instante · pulse uno para resaltarlo</div>
+        <div class="chips" id="chips"></div>
+        <p id="musInfo"></p>
+      </div>
+    </div>
+
+    <div class="right">
+      <section class="panel basic-only" id="basicSec">
+        <h2>Ángulo articular</h2>
+        <div class="jsel" id="jsel" role="group" aria-label="Articulación"></div>
+        <div id="basicPlot"></div>
+        <p class="note">Banda sombreada: apoyo (0–60 %). Línea discontinua: despegue. Positivo: anteversión pélvica, flexión de cadera y de rodilla, dorsiflexión del tobillo.</p>
+      </section>
+
+      <section class="panel adv-only" id="kinSec">
+        <h2>Cinemática sagital</h2>
+        <p class="note">Banda sombreada: apoyo (0–60 %). Positivo: anteversión pélvica, flexión de cadera y de rodilla, dorsiflexión del tobillo.</p>
+        <div class="grid" id="plots"></div>
+      </section>
+
+      <section class="panel adv-only" id="kinetSec">
+        <h2>Momento y potencia articular netos</h2>
+        <p class="note">Momento interno, en Nm/kg: positivo, plantiflexor en el tobillo y extensor en rodilla y cadera. Potencia, en W/kg: positivo, generación neta; negativo, absorción neta. La potencia se calcula en esta página como momento × velocidad angular de la propia animación, de modo que se anula cuando la articulación se detiene. Cada articulación tiene su propia escala.</p>
+        <div id="kinet"></div>
+      </section>
+
+      <section class="panel adv-only" id="emgSec">
+        <h2>Temporalidad de la activación muscular</h2>
+        <p class="note">Las bandas indican solo cuándo se activa cada grupo (Perry, 1992); no representan amplitud EMG, fuerza ni permiten comparar músculos. Pulse un nombre para resaltarlo en la figura.</p>
+        <div style="overflow-x:auto"><svg id="emg" viewBox="0 0 470 240" role="img" aria-label="Línea de tiempo de la activación de ocho grupos musculares del miembro derecho"></svg></div>
+      </section>
+
+      <section class="panel adv-only" id="tabSec">
+        <details class="tab">
+          <summary>Tabla de eventos y valores</summary>
+          <p class="note">Valores leídos de las mismas funciones que dibujan la figura y las gráficas, redondeados: ángulos al grado, potencia a la décima de W/kg.</p>
+          <div class="tw"><table id="evTable"></table></div>
+          <div class="tw"><table id="exTable"></table></div>
+        </details>
+      </section>
+
+      <section class="panel">
+        <details class="meth">
+          <summary>Procedencia de las cifras y limitaciones</summary>
+          <ul>
+            <li><b>Fases y eventos:</b> Perry (1992), caps. 1–2. El contacto inicial (0–2 %) queda incluido en la respuesta a la carga.</li>
+            <li><b>Ángulos:</b> ajustados por mínimos cuadrados a las curvas medias de referencia del libro <i>Análisis de la marcha</i> (pelvis, cadera, rodilla y tobillo en el plano sagital), con los eventos de Perry como restricciones del contacto del pie: talón al 0 %, antepié al 10 %, pie plano hasta la elevación del talón al 30 %, contacto contralateral al 50 %, despegue al 60 %, tibia vertical al 87 %, doble apoyo con los dos pies en el suelo y sin deslizamiento. Diferencia media con las curvas del libro: 1–4°; la mayor está en la cadera y en el tobillo durante el apoyo, por el pie rígido del modelo.</li>
+            <li><b>Momentos:</b> tobillo y cadera, curva media de referencia del libro, suavizada; rodilla, forma esquemática según Winter (2009).</li>
+            <li><b>Potencia:</b> calculada aquí como momento × velocidad angular, con un ciclo de 1,1 s. No procede de dinámica inversa de un sujeto. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale al acortamiento de los fascículos (Honert y Zelik, 2016).</li>
+            <li><b>Activación muscular:</b> ventanas de temporalidad según Perry (1992), caps. 4–6. La función de los plantiflexores sigue a Neptune et al. (2001) y Francis et al. (2013).</li>
+            <li><b>Límite del 73 %:</b> Perry sitúa el fin del balanceo inicial cuando el pie que oscila queda frente al de apoyo, «aproximadamente un tercio del balanceo». Es un límite convencional: en este modelo los tobillos se cruzan hacia el <span id="adjPct">80</span> %, y ese evento se marca por separado.</li>
+            <li><b>Limitaciones:</b> pie de un solo segmento, sin articulación metatarsofalángica; sin rotación pélvica ni movimientos frontales. El miembro izquierdo repite el derecho con medio ciclo de desfase. La velocidad de reproducción solo cambia la animación; una marcha más lenta tendría otras curvas.</li>
+          </ul>
+          <p><b>Referencias.</b> Perry J. <i>Gait Analysis: Normal and Pathological Function</i>. Thorofare: SLACK; 1992. · Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4.ª ed. Hoboken: Wiley; 2009. · Neptune RR, Kautz SA, Zajac FE. Contributions of the individual ankle plantar flexors to support, forward progression and swing initiation during walking. <i>J Biomech</i>. 2001;34(11):1387–98. · Francis CA, Lenz AL, Lenhart RL, Thelen DG. The modulation of forward propulsion, vertical support, and center of pressure by the plantarflexors during human walking. <i>Gait Posture</i>. 2013;38(4):993–7. doi:10.1016/j.gaitpost.2013.05.009 · Honert EC, Zelik KE. Inferring muscle-tendon unit power from ankle joint power during the push-off phase of human walking: insights from a multiarticular EMG-driven model. <i>PLoS One</i>. 2016;11(10):e0163169. doi:10.1371/journal.pone.0163169</p>
+          <p>Versión 3.0 · 17-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
+        </details>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="mini" aria-hidden="true">
+  <button id="mPlay" type="button" tabindex="-1">Pausar</button>
+  <input id="mScrub" type="range" min="0" max="100" step="0.5" value="0" tabindex="-1" aria-hidden="true">
+  <span class="pct" id="mPct">0 %</span>
+  <span class="mph" id="mPh"></span>
+</div>
+<div class="sr" aria-live="polite" id="live"></div>
+
+<script>
+(function(){
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=(v,d=0)=>{const s=(Math.abs(v)<Math.pow(10,-d)/2?0:v).toFixed(d).replace('.',',');return s.replace(/^-/,'−');};
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+
+/* ---------- datos (generados por herramientas/fit9.py y herramientas/datos_js.py) ----------
+   NODES: ángulos cada 2 % (0–98 %), Catmull-Rom periódico, ajustados a las curvas del libro con restricciones de contacto.
+   MOM_ANKLE, MOM_HIP: momento interno medio del libro (Nm/kg) cada 1 %, suavizado (media móvil 1-2-3-2-1). */
+const NODES={
+  pelvis:[12.95,13.00,12.96,12.76,12.33,11.70,11.34,11.24,11.32,11.49,11.68,11.83,11.89,11.83,11.65,11.54,11.88,12.31,12.59,12.63,12.46,12.21,12.00,11.92,11.87,11.78,11.45,11.07,10.71,10.35,10.00,10.05,10.45,10.95,11.40,11.75,11.96,12.01,11.84,11.48,11.10,11.01,11.18,11.35,11.55,11.78,11.97,12.16,12.43,12.71],
+  hip:[28.48,27.27,26.14,25.25,24.74,24.52,23.68,22.18,20.17,17.87,15.51,13.24,11.18,9.34,7.67,5.81,3.03,0.10,-2.41,-4.23,-5.41,-6.22,-6.93,-7.68,-8.23,-8.34,-7.52,-6.01,-3.93,-1.30,1.79,4.48,6.76,9.02,11.48,14.24,17.29,20.65,24.27,27.99,31.33,33.60,34.78,35.37,35.36,34.84,34.02,32.93,31.51,29.98],
+  knee:[11.65,11.81,11.76,12.13,12.94,13.89,14.39,14.22,13.49,12.34,10.93,9.38,7.80,6.29,4.87,3.68,3.13,2.66,2.26,2.05,2.17,2.75,3.91,5.75,8.32,11.58,15.31,19.67,24.61,29.93,35.41,41.57,47.83,53.31,57.42,59.95,60.90,60.42,58.60,55.38,50.52,43.76,35.72,27.61,20.75,15.69,12.31,10.50,10.13,10.78],
+  ankle:[-3.04,-2.51,-1.43,-0.37,0.48,1.10,2.04,3.28,4.64,5.96,7.10,7.96,8.51,8.77,8.88,9.07,9.42,10.19,10.92,11.24,10.98,10.17,8.88,7.20,5.10,2.76,0.33,-2.28,-5.21,-8.27,-11.09,-12.87,-13.34,-12.53,-10.70,-8.20,-5.39,-2.57,0.09,2.45,4.25,4.99,4.76,4.03,3.05,1.92,0.73,-0.45,-1.56,-2.54]
+};
+const MOM_ANKLE=[-0.003,-0.008,-0.018,-0.029,-0.031,-0.016,0.012,0.047,0.083,0.117,0.147,0.173,0.198,0.222,0.247,0.274,0.302,0.332,0.363,0.397,0.431,0.466,0.501,0.538,0.576,0.616,0.656,0.698,0.741,0.784,0.828,0.873,0.917,0.962,1.006,1.049,1.091,1.132,1.173,1.215,1.257,1.298,1.337,1.372,1.401,1.422,1.433,1.431,1.412,1.374,1.314,1.231,1.120,0.983,0.821,0.647,0.474,0.318,0.190,0.095,0.035,0.004,-0.009,-0.013,-0.013,-0.013,-0.012,-0.011,-0.010,-0.009,-0.008,-0.008,-0.007,-0.006,-0.006,-0.006,-0.006,-0.006,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.006,-0.006,-0.005,-0.004,-0.003,-0.002,-0.002,-0.002];
+const MOM_HIP=[0.406,0.641,0.769,0.727,0.560,0.404,0.311,0.258,0.228,0.209,0.193,0.175,0.157,0.146,0.136,0.121,0.098,0.071,0.043,0.019,-0.001,-0.018,-0.032,-0.047,-0.067,-0.092,-0.120,-0.149,-0.175,-0.200,-0.223,-0.247,-0.271,-0.296,-0.322,-0.350,-0.382,-0.418,-0.457,-0.498,-0.540,-0.585,-0.634,-0.686,-0.740,-0.795,-0.849,-0.895,-0.927,-0.937,-0.921,-0.875,-0.796,-0.692,-0.587,-0.511,-0.473,-0.457,-0.432,-0.379,-0.300,-0.222,-0.162,-0.129,-0.111,-0.099,-0.086,-0.074,-0.061,-0.049,-0.038,-0.029,-0.022,-0.018,-0.017,-0.019,-0.023,-0.029,-0.036,-0.043,-0.050,-0.054,-0.054,-0.051,-0.042,-0.026,-0.005,0.023,0.056,0.093,0.131,0.169,0.202,0.229,0.246,0.254,0.250,0.237,0.210,0.258];
+function makeCR(y){ const N=y.length,h=100/N;
+  return x=>{ x=((x%100)+100)%100; const i=Math.floor(x/h)%N,t=(x-i*h)/h,t2=t*t,t3=t2*t;
+    const y0=y[(i-1+N)%N],y1=y[i],y2=y[(i+1)%N],y3=y[(i+2)%N],m1=(y2-y0)/2,m2=(y3-y1)/2;
+    return (2*t3-3*t2+1)*y1+(t3-2*t2+t)*m1+(-2*t3+3*t2)*y2+(t3-t2)*m2; }; }
+function makeLin(a){ const N=a.length; return x=>{ x=((x%100)+100)%100*N/100; const i=Math.floor(x)%N,t=x-Math.floor(x); return a[i]*(1-t)+a[(i+1)%N]*t; }; }
+function makePchip(pts){
+  const P=[];for(const o of [-100,0,100]) for(const [x,y] of pts) P.push([x+o,y]);
+  const n=P.length,h=[],d=[],m=new Array(n).fill(0);
+  for(let i=0;i<n-1;i++){h[i]=P[i+1][0]-P[i][0];d[i]=(P[i+1][1]-P[i][1])/h[i];}
+  for(let i=1;i<n-1;i++){ if(d[i-1]*d[i]<=0) m[i]=0; else{const w1=2*h[i]+h[i-1],w2=h[i]+2*h[i-1];m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i]);} }
+  return x=>{ x=((x%100)+100)%100; let i=0; while(!(P[i][0]<=x&&x<P[i+1][0])) i++;
+    const t=(x-P[i][0])/h[i],t2=t*t,t3=t2*t;
+    return (2*t3-3*t2+1)*P[i][1]+(t3-2*t2+t)*h[i]*m[i]+(-2*t3+3*t2)*P[i+1][1]+(t3-t2)*h[i]*m[i+1]; }; }
+/* Momento de rodilla: forma esquemática según Winter (2009); positivo extensor. */
+const KNEE_MOM=[[0,-0.1],[4,0.15],[12,0.6],[20,0.3],[27,0],[36,-0.2],[44,0],[52,0.1],[56,0.12],[62,0.02],[75,-0.02],[86,-0.1],[93,-0.28],[98,-0.15]];
+const F={}; for(const k in NODES) F[k]=makeCR(NODES[k]);
+F.mAnkle=makeLin(MOM_ANKLE); F.mHip=makeLin(MOM_HIP); F.mKnee=makePchip(KNEE_MOM);
+/* Potencia = momento interno × velocidad angular en el sentido del momento.
+   Tobillo: momento plantiflexor × velocidad de flexión plantar (−dθ/dt, con dorsiflexión positiva).
+   Rodilla y cadera: momento extensor × velocidad de extensión (−dθ/dt, con flexión positiva). */
+const T=1.1, D2R=Math.PI/180;
+const omega=k=>x=>-(F[k](x+0.05)-F[k](x-0.05))/0.1*(100/T)*D2R;   // rad/s
+const W={ankle:omega('ankle'),knee:omega('knee'),hip:omega('hip')};
+F.pAnkle=x=>F.mAnkle(x)*W.ankle(x); F.pKnee=x=>F.mKnee(x)*W.knee(x); F.pHip=x=>F.mHip(x)*W.hip(x);
+
+/* ---------- modelo geométrico ---------- */
+const rad=d=>d*D2R;
+function leg(x,u){
+  const tilt=F.pelvis(x), th=rad(F.hip(x)-tilt), ts=th-rad(F.knee(x)), ps=ts+rad(F.ankle(x));
+  const Lt=u*0.26,Ls=u*0.26,Lf=u*0.13;
+  const K={x:Math.sin(th)*Lt,y:Math.cos(th)*Lt};
+  const A={x:K.x+Math.sin(ts)*Ls,y:K.y+Math.cos(ts)*Ls};
+  const f={x:Math.cos(ps),y:-Math.sin(ps)}, n={x:Math.sin(ps),y:Math.cos(ps)};
+  const heel={x:A.x-0.24*Lf*f.x+0.32*Lf*n.x,y:A.y-0.24*Lf*f.y+0.32*Lf*n.y};
+  const toe={x:A.x+0.80*Lf*f.x+0.32*Lf*n.x,y:A.y+0.80*Lf*f.y+0.32*Lf*n.y};
+  return {th,ts,ps,K,A,heel,toe,f,Lt,Ls,Lf}; }
+const FF=10, HR=30;
+const TOEW=1.04*0.13;
+const STEP=TOEW-leg(50,1).toe.x+leg(0,1).heel.x;
+function gR(x){const L=leg(x,1);return x<HR? -L.heel.x : TOEW-L.toe.x;}
+function hipW(x){return x<50? gR(x) : STEP+gR(x-50);}
+function contactY(L){return Math.max(L.heel.y,L.toe.y);}
+
+/* ---------- autocomprobación del contacto (u/1000) y de la potencia ---------- */
+const QA=(function(){ let ds=0,pen=0,flat=0,clr=1e9,Dmin=1e9,Dmax=-1e9;
+  for(let x=0;x<100;x+=0.1){ const R=leg(x,1000),L=leg(x+50,1000), g=x<50?contactY(R):contactY(L);
+    for(const p of [R.heel,R.toe,L.heel,L.toe]) pen=Math.max(pen,p.y-g);
+    if(x<=10){ ds=Math.max(ds,Math.abs(R.heel.y-L.toe.y)); const D=R.heel.x-L.toe.x; Dmin=Math.min(Dmin,D); Dmax=Math.max(Dmax,D); }
+    if(x>=FF&&x<=HR) flat=Math.max(flat,Math.abs(R.heel.y-R.toe.y));
+    if(x>=14&&x<=46) clr=Math.min(clr,g-L.heel.y,g-L.toe.y); }
+  let adj=80; for(let x=95;x>60;x-=0.1){ if(leg(x,1).A.x>leg(x+50,1).A.x)adj=x; }
+  let pz=0; for(let x=0;x<100;x+=0.1) for(const k of ['ankle','knee','hip']){ if(Math.abs(W[k](x))<1e-3){const p=Math.abs(F['p'+k[0].toUpperCase()+k.slice(1)](x)); if(p>pz)pz=p;} }
+  return {ds,pen,flat,slip:Dmax-Dmin,clr,adj,pz}; })();
+document.getElementById('adjPct').textContent=fmt(QA.adj);
+document.getElementById('qa').textContent=`Revisión del contacto (u/1000; tolerancia 1): doble apoyo, diferencia de altura ${fmt(QA.ds,2)} · deslizamiento ${fmt(QA.slip,2)} · pie plano, desnivel ${fmt(QA.flat,2)} · penetración ${fmt(QA.pen,2)} · despeje mínimo ${fmt(QA.clr,1)}. Potencia con velocidad angular nula: ${fmt(QA.pz,3)} W/kg.`;
+
+/* ---------- eventos y fases (Perry 1992, caps. 1–2) ---------- */
+const EV=[
+  {p:0,k:'CI',n:'Contacto inicial'},{p:10,k:'DC',n:'Despegue contralateral (y contacto del antepié)'},{p:30,k:'ET',n:'Elevación del talón'},
+  {p:50,k:'CC',n:'Contacto contralateral'},{p:60,k:'D',n:'Despegue'},
+  {p:73,k:'73',n:'Fin del balanceo inicial (límite convencional de Perry)',conv:1},
+  {p:Math.round(QA.adj*2)/2,k:'TA',n:'Tobillos adyacentes (en este modelo)'},
+  {p:87,k:'TV',n:'Tibia vertical'},{p:100,k:'CI',n:'Contacto inicial siguiente'}
+];
+const PCI={a:0,b:2,k:'CI',n:'Contacto inicial',
+  obj:'Colocar el miembro para iniciar el apoyo con la mecedora del talón.',
+  mov:'El talón toca el suelo con la cadera flexionada, la rodilla casi extendida y el tobillo cerca de neutro.',
+  mec:'El tibialis anterior sostiene el pie; los isquiotibiales y el gluteus maximus han frenado el avance del miembro al final del balanceo.',
+  q:'¿Por qué el contacto se hace con el talón y no con todo el pie?',
+  ans:'Porque el tobillo llega cerca de neutro y la rodilla casi extendida: el talón queda como punto más bajo y sobre él gira el pie (mecedora del talón), lo que conserva la progresión.'};
+const PH=[
+  {a:0,b:10,k:'RC',n:'Respuesta a la carga',
+   obj:'Absorber el choque, dar estabilidad en carga y conservar la progresión.',
+   mov:'La rodilla se flexiona y el tobillo se plantiflexiona hasta que el antepié toca el suelo, hacia el 10 % (pie plano).',
+   mec:'El tibialis anterior frena el descenso del antepié; los vastos frenan la flexión de la rodilla; el gluteus maximus estabiliza la cadera y el tronco. En la rodilla hay absorción neta de potencia.',
+   q:'¿Por qué hay absorción de potencia mientras la rodilla se flexiona?',
+   ans:'Porque el momento interno es extensor y el movimiento es de flexión: el producto del momento por la velocidad angular es negativo. Los vastos frenan la flexión en lugar de producirla.'},
+  {a:10,b:30,k:'AM',n:'Apoyo medio',
+   obj:'Avanzar el cuerpo sobre el pie apoyado manteniendo estable el miembro y el tronco.',
+   mov:'La tibia avanza sobre el pie estacionario (mecedora del tobillo) mientras la rodilla y la cadera se extienden.',
+   mec:'El soleus y el gastrocnemius regulan el avance de la tibia y contribuyen al soporte del cuerpo (Neptune et al., 2001).',
+   q:'¿Qué controla la velocidad con que avanza la tibia?',
+   ans:'El momento plantiflexor del soleus y del gastrocnemius. Sin él, la tibia avanzaría demasiado rápido y la rodilla se flexionaría.'},
+  {a:30,b:50,k:'AT',n:'Apoyo terminal',
+   obj:'Llevar el cuerpo por delante del pie de apoyo.',
+   mov:()=>`El talón se eleva y el miembro avanza sobre el antepié. El tobillo alcanza su dorsiflexión máxima hacia el ${fmt(EXT.ankleMax.x)} %, la rodilla su menor flexión del apoyo y la cadera su extensión máxima al final de la fase.`,
+   mec:'El complejo plantiflexor contribuye al soporte y a la progresión. El momento plantiflexor alcanza su máximo mientras el tobillo todavía se dorsiflexiona: en el tobillo predomina la absorción.',
+   q:'¿Por qué el momento plantiflexor es máximo cuando el tobillo todavía se dorsiflexiona?',
+   ans:'Porque el peso del cuerpo ya está por delante del antepié. El momento frena la dorsiflexión; parte de la energía se almacena en el tendón y se devuelve en el despegue (Honert y Zelik, 2016).'},
+  {a:50,b:60,k:'PB',n:'Prebalanceo',
+   obj:'Transferir el peso al otro miembro y preparar el balanceo.',
+   mov:'El tobillo se plantiflexiona con rapidez, la rodilla se flexiona y la cadera pasa de la extensión a la flexión.',
+   mec:'Hay generación de potencia en el tobillo (A2) y en la cadera (H3). El soleus contribuye a la progresión del tronco y el gastrocnemius a iniciar el balanceo del miembro (Neptune et al., 2001); el rectus femoris regula la flexión de la rodilla. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale directamente al acortamiento de sus fascículos.',
+   q:'¿De dónde sale la flexión de la rodilla del prebalanceo?',
+   ans:'Sobre todo de la plantiflexión del tobillo, que lleva la tibia hacia delante, y de la flexión de la cadera. Es en buena parte pasiva; el rectus femoris la limita.'},
+  {a:60,b:73,k:'BI',n:'Balanceo inicial',
+   obj:'Despejar el pie y avanzar el miembro desde su posición posterior.',
+   mov:'La cadera se flexiona y la rodilla alcanza su flexión máxima del ciclo; el tobillo se dorsiflexiona solo en parte.',
+   mec:'El iliopsoas avanza el muslo; el tibialis anterior recupera la dorsiflexión. El fin de la fase al 73 % es el límite convencional de Perry, cuando el pie que oscila queda frente al de apoyo.',
+   q:'¿Qué permite el despeje del pie en esta fase?',
+   ans:'Sobre todo la flexión de la rodilla, junto con la de la cadera. El tobillo todavía no llega a neutro.'},
+  {a:73,b:87,k:'BM',n:'Balanceo medio',
+   obj:'Seguir avanzando el miembro con el pie despejado.',
+   mov:'La cadera continúa su flexión, la rodilla se extiende y el tobillo llega a neutro. La tibia queda vertical al 87 %.',
+   mec:'La rodilla se extiende por la dinámica del miembro, incluida la gravedad y las interacciones entre segmentos; el tibialis anterior sostiene el pie cerca de neutro.',
+   q:'¿Por qué la rodilla se extiende sin actividad de los vastos?',
+   ans:'Por la dinámica del miembro: el muslo, que avanza, arrastra la pierna, y la gravedad contribuye. Los vastos se activan después, al final del balanceo.'},
+  {a:87,b:100,k:'BT',n:'Balanceo terminal',
+   obj:'Completar el avance y preparar el miembro para el apoyo.',
+   mov:'La rodilla termina de extenderse; la cadera mantiene su flexión y el tobillo, el neutro.',
+   mec:'Los isquiotibiales frenan la extensión de la rodilla y el avance del muslo: en la rodilla hay absorción neta. Los vastos y el tibialis anterior se activan para el contacto.',
+   q:'¿Por qué la rodilla absorbe potencia al final del balanceo?',
+   ans:'Porque los isquiotibiales producen un momento flexor mientras la rodilla se extiende; frenan la pierna antes del contacto.'}
+];
+
+/* ---------- músculos: ventanas de actividad (Perry 1992, caps. 4–6); función aproximada por tramo ---------- */
+const MUS=[
+  {id:'glut',name:'Gluteus maximus',lat:1,w:[[95,112]],
+   f:[[95,100,'se activa al final del balanceo terminal'],[0,12,'estabiliza la cadera y el tronco en la respuesta a la carga']]},
+  {id:'ilio',name:'Iliopsoas',lat:1,w:[[45,80]],
+   f:[[45,60,'inicia la flexión de la cadera al final del apoyo'],[60,80,'avanza el muslo en el balanceo inicial']]},
+  {id:'vast',name:'Vastos',w:[[90,120]],
+   f:[[90,100,'preparan la rodilla para la carga al final del balanceo'],[0,20,'frenan la flexión de la rodilla en la respuesta a la carga']]},
+  {id:'rf',name:'Rectus femoris',lat:1,w:[[54,68]],
+   f:[[54,68,'regula la flexión rápida de la rodilla']]},
+  {id:'ham',name:'Isquiotibiales',w:[[80,108]],
+   f:[[80,100,'frenan el avance del muslo y la extensión de la rodilla (cruzan cadera y rodilla)'],[0,8,'protegen la rodilla de la hiperextensión al inicio de la carga']]},
+  {id:'ta',name:'Tibialis anterior',lat:1,w:[[57,111]],
+   f:[[57,73,'recupera la dorsiflexión para el despeje'],[73,87,'sostiene el pie cerca de neutro'],[87,100,'posiciona el pie para el contacto del talón'],[0,11,'frena el descenso del antepié (mecedora del talón)']]},
+  {id:'sol',name:'Soleus',lat:1,w:[[8,56]],
+   f:[[8,30,'regula el avance de la tibia y contribuye al soporte'],[30,50,'contribuye al soporte y a la progresión del tronco'],[50,56,'contribuye a la progresión del tronco mientras disminuye su actividad']]},
+  {id:'gas',name:'Gastrocnemius',lat:1,w:[[12,54]],
+   f:[[12,30,'regula el avance de la tibia con el soleus; cruza también la rodilla'],[30,50,'contribuye al soporte'],[50,54,'contribuye a iniciar el balanceo del miembro']]}
+];
+const mName=mu=>mu.lat?`<i>${mu.name}</i>`:mu.name;
+function act(mu,x){ for(const [s,e] of mu.w) for(const xx of [x,x+100,x-100]) if(xx>=s&&xx<=e) return true; return false; }
+function fnAt(mu,x){ for(const [a,b,t] of mu.f) for(const xx of [x,x+100,x-100]) if(xx>=a&&xx<b) return t;
+  for(const [a,b,t] of mu.f) for(const xx of [x,x+100,x-100]) if(xx>=a-0.01&&xx<=b+1) return t; return ''; }
+const winTxt=mu=>mu.w.map(([s,e])=>e>100?`${s}–100 % y 0–${e-100} %`:`${s}–${e} %`).join(' y ');
+let sel=null;
+
+/* ---------- escenario ---------- */
+const cv=document.getElementById('stage'), cx=cv.getContext('2d');
+let Wd=720,H=440;
+function resize(){ const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  Wd=r.width; H=Math.min(r.width*0.62,440); if(innerWidth>980) H=Math.min(H,innerHeight*0.46); cv.style.height=H+'px';
+  cv.width=Math.round(Wd*dpr); cv.height=Math.round(H*dpr); cx.setTransform(dpr,0,0,dpr,0,0); }
+const dbgC=document.getElementById('dbg');
+function draw(x){
+  const u=H*0.8, gy=H*0.9, hx=Wd*0.48;
+  cx.clearRect(0,0,Wd,H);
+  const R=leg(x,u), Lg=leg(x+50,u);
+  const hy=gy-(x<50?contactY(R):contactY(Lg));
+  const P=(o,p)=>({x:hx+p.x,y:hy+p.y});
+  const ink=css('--ink'),muted=css('--muted'),line=css('--line'),cR=css('--right'),cL=css('--left');
+  const hw=hipW(x)*u, sp=2*STEP*u/16;
+  cx.strokeStyle=line;cx.lineWidth=2;cx.beginPath();cx.moveTo(0,gy);cx.lineTo(Wd,gy);cx.stroke();
+  cx.lineWidth=1;cx.beginPath();
+  const k0=Math.floor((hw-hx)/sp)-1;
+  for(let k=k0;k<k0+Wd/sp+3;k++){const gx=hx+k*sp-hw;cx.moveTo(gx,gy+2);cx.lineTo(gx-8,gy+12);} cx.stroke();
+  const fl=1.04*0.13*u, s0=Math.floor((hw-hx)/(STEP*u))-2;
+  for(let k=s0;k<s0+Wd/(STEP*u)+4;k++){cx.globalAlpha=.35;cx.fillStyle=(((k%2)+2)%2)?cL:cR;cx.fillRect(hx+k*STEP*u-hw,gy+3,fl,3);cx.globalAlpha=1;}
+  const tilt=F.pelvis(x), pc={x:hx,y:hy-u*0.035};
+  const sh={x:pc.x+Math.sin(rad(4))*u*0.30,y:pc.y-u*0.30};
+  const arm=(t,col,al)=>{const a=t*0.7;const e={x:sh.x+Math.sin(a)*u*0.20,y:sh.y+Math.cos(a)*u*0.20};
+    const w={x:e.x+Math.sin(a+0.45)*u*0.19,y:e.y+Math.cos(a+0.45)*u*0.19};
+    cx.globalAlpha=al;cx.strokeStyle=col;cx.lineWidth=u*0.022;cx.lineCap='round';cx.beginPath();cx.moveTo(sh.x,sh.y);cx.lineTo(e.x,e.y);cx.lineTo(w.x,w.y);cx.stroke();cx.globalAlpha=1;};
+  arm(R.th,cL,.45);
+  drawLeg(Lg,P,cL,null,u,.45);
+  cx.strokeStyle=ink;cx.lineWidth=u*0.035;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(pc.x,pc.y);cx.lineTo(sh.x,sh.y);cx.stroke();
+  cx.fillStyle=ink;cx.beginPath();cx.arc(sh.x+u*0.012,sh.y-u*0.075,u*0.05,0,7);cx.fill();
+  cx.save();cx.translate(pc.x,pc.y);cx.rotate(rad(tilt));
+  cx.fillStyle=css('--pel');cx.globalAlpha=.85;cx.beginPath();cx.ellipse(0,0,u*0.075,u*0.038,0,0,7);cx.fill();cx.globalAlpha=1;
+  cx.strokeStyle=css('--surface');cx.lineWidth=1.5;cx.beginPath();cx.moveTo(-u*0.07,0);cx.lineTo(u*0.07,0);cx.stroke();
+  cx.restore();
+  drawLeg(R,P,cR,x,u,1);
+  arm(Lg.th,cR,1);
+  cx.fillStyle=muted;cx.font='11px '+css('--f-data');cx.textAlign='right';
+  cx.fillText('dirección de marcha →',Wd-12,20);
+  cx.fillStyle=cR;cx.fillText('derecho',Wd-12,36);cx.fillStyle=cL;cx.fillText('izquierdo',Wd-12,50);
+  if(dbgC.checked) drawContacts([[R,cR],[Lg,cL]],P,gy,u);
+}
+function drawContacts(list,P,gy,u){
+  cx.font='10.5px '+css('--f-data');cx.textAlign='left';
+  const names=[['talón D','punta D'],['talón I','punta I']];
+  list.forEach(([L,col],j)=>{ const txt=[];
+    [L.heel,L.toe].forEach((pt,k)=>{ const q=P(0,pt), gap=(gy-q.y)/u*1000;
+      cx.fillStyle=col;cx.beginPath();cx.arc(q.x,q.y,3.5,0,7);cx.fill();
+      cx.strokeStyle=col;cx.setLineDash([2,2]);cx.lineWidth=1;cx.beginPath();cx.moveTo(q.x,q.y);cx.lineTo(q.x,gy);cx.stroke();cx.setLineDash([]);
+      txt.push(names[j][k]+' '+fmt(Math.abs(gap)<0.05?0:gap,1)); });
+    cx.fillStyle=col;cx.fillText(txt.join(' · '),12,40+j*14); });
+  cx.fillStyle=css('--muted');cx.fillText('altura sobre el suelo (u/1000)',12,26);
+}
+function drawLeg(L,P,col,x,u,al){
+  const hip=P(0,{x:0,y:0}),K=P(0,L.K),A=P(0,L.A),he=P(0,L.heel),to=P(0,L.toe);
+  cx.globalAlpha=al;cx.strokeStyle=col;cx.lineCap='round';cx.lineJoin='round';cx.lineWidth=u*0.03;
+  cx.beginPath();cx.moveTo(hip.x,hip.y);cx.lineTo(K.x,K.y);cx.lineTo(A.x,A.y);cx.stroke();
+  cx.lineWidth=u*0.022;cx.beginPath();cx.moveTo(A.x,A.y);cx.lineTo(he.x,he.y);cx.lineTo(to.x,to.y);cx.closePath();cx.stroke();
+  cx.globalAlpha=1;
+  if(x!==null){ drawMuscles(L,P,x,u); cx.fillStyle=css('--surface');for(const j of [hip,K,A]){cx.beginPath();cx.arc(j.x,j.y,u*0.011,0,7);cx.fill();}}
+}
+function drawMuscles(L,P,x,u){
+  const fT={x:Math.cos(L.th),y:-Math.sin(L.th)}, fS={x:Math.cos(L.ts),y:-Math.sin(L.ts)};
+  const dT={x:Math.sin(L.th),y:Math.cos(L.th)}, dS={x:Math.sin(L.ts),y:Math.cos(L.ts)};
+  const onT=(t,o)=>P(0,{x:dT.x*L.Lt*t+fT.x*o*u,y:dT.y*L.Lt*t+fT.y*o*u});
+  const onS=(t,o)=>P(0,{x:L.K.x+dS.x*L.Ls*t+fS.x*o*u,y:L.K.y+dS.y*L.Ls*t+fS.y*o*u});
+  const hip=P(0,{x:0,y:0});
+  const paths={
+    glut:[{x:hip.x-u*0.06,y:hip.y-u*0.045},onT(0.12,-0.03),onT(0.3,-0.022)],
+    ilio:[{x:hip.x+u*0.015,y:hip.y-u*0.11},{x:hip.x+u*0.045,y:hip.y-u*0.02},onT(0.18,0.018)],
+    rf:[{x:hip.x+u*0.035,y:hip.y-u*0.035},onT(0.5,0.04),onT(0.96,0.03),onS(0.08,0.016)],
+    vast:[onT(0.25,0.022),onT(0.6,0.026),onT(0.97,0.018),onS(0.1,0.01)],
+    ham:[{x:hip.x-u*0.03,y:hip.y+u*0.01},onT(0.5,-0.03),onT(0.95,-0.022),onS(0.12,-0.012)],
+    ta:[onS(0.15,0.018),onS(0.6,0.02),onS(0.92,0.012),P(0,{x:L.A.x+L.f.x*L.Lf*0.3,y:L.A.y+L.f.y*L.Lf*0.3-u*0.004})],
+    gas:[onT(0.9,-0.016),onS(0.25,-0.036),onS(0.5,-0.03),onS(0.78,-0.02),P(0,L.heel)],
+    sol:[onS(0.3,-0.018),onS(0.6,-0.02),onS(0.85,-0.014),P(0,L.heel)]
+  };
+  const ac=css('--act'), off=css('--line');
+  const order=MUS.filter(m=>m.id!==sel).concat(MUS.filter(m=>m.id===sel));
+  for(const mu of order){ const on=act(mu,x), pts=paths[mu.id], isSel=mu.id===sel, dim=sel&&!isSel;
+    cx.lineCap='round';cx.lineJoin='round';
+    cx.strokeStyle=on?ac:off;
+    cx.globalAlpha=dim?(on?0.25:0.5):(on?1:0.9);
+    cx.lineWidth=u*(isSel?(on?0.032:0.022):(on?0.022:0.013));
+    if(isSel&&!on) cx.setLineDash([u*0.02,u*0.015]);
+    cx.beginPath();cx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length-1;i++){const mx=(pts[i].x+pts[i+1].x)/2,my=(pts[i].y+pts[i+1].y)/2;cx.quadraticCurveTo(pts[i].x,pts[i].y,mx,my);}
+    const l=pts[pts.length-1];cx.lineTo(l.x,l.y);cx.stroke();cx.setLineDash([]);cx.globalAlpha=1;}
+}
+
+/* ---------- gráficas ---------- */
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;};
+function plot(host,cfg){
+  const box=document.createElement('div');box.className='plot';
+  const h=document.createElement('h3');h.innerHTML=cfg.title+' <span></span>';box.appendChild(h);
+  const VW=320,VH=cfg.vh||140,l=34,r=8,t=8,b=20, X=p=>l+p/100*(VW-l-r), Y=v=>t+(cfg.max-v)/(cfg.max-cfg.min)*(VH-t-b);
+  const s=el('svg',{viewBox:`0 0 ${VW} ${VH}`,role:'img','aria-label':cfg.aria},box);
+  el('rect',{x:X(0),y:t,width:X(60)-X(0),height:VH-t-b,fill:'var(--stance)'},s);
+  for(const v of cfg.ticks){el('line',{x1:l,x2:VW-r,y1:Y(v),y2:Y(v),stroke:'var(--line)','stroke-width':v===0?1:.5},s);
+    el('text',{x:l-4,y:Y(v)+3,'text-anchor':'end'},s).textContent=fmt(v,cfg.dec||0);}
+  for(const p of [0,20,40,60,80,100]) el('text',{x:X(p),y:VH-6,'text-anchor':'middle'},s).textContent=p+'%';
+  el('line',{x1:X(60),x2:X(60),y1:t,y2:VH-b,stroke:'var(--muted)','stroke-dasharray':'3 3','stroke-width':.8},s);
+  const dots=[];
+  for(const se of cfg.series){let d='';for(let p=0;p<=100;p+=0.5)d+=(p?'L':'M')+X(p).toFixed(1)+','+Y(F[se.k](p)).toFixed(1);
+    el('path',{d,fill:'none',stroke:`var(${se.c})`,'stroke-width':2},s);
+    dots.push({k:se.k,c:el('circle',{r:4,fill:`var(${se.c})`,stroke:'var(--surface)','stroke-width':1.5},s)});}
+  const cur=el('line',{y1:t,y2:VH-b,stroke:'var(--cursor)','stroke-width':1},s);
+  host.appendChild(box);
+  return x=>{ if(box.offsetParent===null) return;
+    cur.setAttribute('x1',X(x));cur.setAttribute('x2',X(x));
+    for(const d of dots){d.c.setAttribute('cx',X(x));d.c.setAttribute('cy',Y(F[d.k](x)));}
+    h.querySelector('span').textContent=cfg.read(x);};
+}
+const deg=v=>fmt(Math.abs(v))+'°';
+const rdHip=v=>deg(v)+(v>=0?' flexión':' extensión'), rdAnk=v=>deg(v)+(v>=0?' dorsiflexión':' flexión plantar');
+const JC={
+  pelvis:{title:'Pelvis',aria:'Inclinación pélvica a lo largo del ciclo',min:0,max:20,ticks:[0,10,20],series:[{k:'pelvis',c:'--pel'}],read:x=>deg(F.pelvis(x))+' anteversión'},
+  hip:{title:'Cadera',aria:'Flexión y extensión de cadera a lo largo del ciclo',min:-20,max:50,ticks:[-20,0,20,40],series:[{k:'hip',c:'--hip'}],read:x=>rdHip(F.hip(x))},
+  knee:{title:'Rodilla',aria:'Flexión de rodilla a lo largo del ciclo',min:-10,max:70,ticks:[0,20,40,60],series:[{k:'knee',c:'--knee'}],read:x=>deg(F.knee(x))+' flexión'},
+  ankle:{title:'Tobillo',aria:'Dorsiflexión y flexión plantar a lo largo del ciclo',min:-20,max:20,ticks:[-20,-10,0,10,20],series:[{k:'ankle',c:'--ankle'}],read:x=>rdAnk(F.ankle(x))}
+};
+const ups=[];
+for(const k of ['pelvis','hip','knee','ankle']) ups.push(plot(document.getElementById('plots'),JC[k]));
+// vista básica: una articulación
+const jsel=document.getElementById('jsel'), bHost=document.getElementById('basicPlot'); const bUps={};
+for(const k of ['pelvis','hip','knee','ankle']){
+  const b=document.createElement('button');b.type='button';b.textContent=JC[k].title;b.dataset.k=k;jsel.appendChild(b);
+  const wrapK=document.createElement('div');wrapK.dataset.k=k;bHost.appendChild(wrapK);
+  bUps[k]=plot(wrapK,Object.assign({},JC[k],{vh:190}));}
+let joint=store.get('cms-joint')||'knee'; if(!JC[joint]) joint='knee';
+function setJoint(k){joint=k;store.set('cms-joint',k);
+  [...jsel.children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===k));
+  [...bHost.children].forEach(d=>d.hidden=d.dataset.k!==k); render();}
+jsel.onclick=e=>{const b=e.target.closest('button');if(b)setJoint(b.dataset.k);};
+ups.push(x=>bUps[joint](x));
+// cinética: momento y potencia por articulación, cada una con su escala
+const kin=document.getElementById('kinet');
+const KR=[
+  {n:'Tobillo',m:'mAnkle',p:'pAnkle',c:'--ankle',mm:[-0.5,1.6],mt:[0,0.5,1,1.5],pm:[-1,3],pt:[-1,0,1,2,3],mr:v=>fmt(v,2)+(v>=0?' plantiflexor':' dorsiflexor')},
+  {n:'Rodilla',m:'mKnee',p:'pKnee',c:'--knee',mm:[-0.4,0.8],mt:[-0.4,0,0.4,0.8],pm:[-1,0.6],pt:[-1,-0.5,0,0.5],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')},
+  {n:'Cadera',m:'mHip',p:'pHip',c:'--hip',mm:[-1.2,1.2],mt:[-1,-0.5,0,0.5,1],pm:[-1,1.5],pt:[-1,0,1],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')}
+];
+for(const r of KR){ const row=document.createElement('div');row.className='kin-row';
+  const lab=document.createElement('div');lab.className='rl';lab.textContent=r.n;row.appendChild(lab);
+  const a=document.createElement('div'),b=document.createElement('div');row.appendChild(a);row.appendChild(b);kin.appendChild(row);
+  ups.push(plot(a,{title:'Momento (Nm/kg)',aria:'Momento interno de '+r.n.toLowerCase(),min:r.mm[0],max:r.mm[1],ticks:r.mt,dec:1,series:[{k:r.m,c:'--mom'}],read:x=>r.mr(F[r.m](x))}));
+  ups.push(plot(b,{title:'Potencia (W/kg)',aria:'Potencia neta de '+r.n.toLowerCase(),min:r.pm[0],max:r.pm[1],ticks:r.pt,dec:1,series:[{k:r.p,c:r.c}],read:x=>{const v=F[r.p](x);return fmt(v,1)+(Math.abs(v)<0.05?'':v>0?' generación':' absorción');}}));}
+
+/* ---------- temporalidad muscular ---------- */
+const emg=document.getElementById('emg');
+const EL=122,ER=10,ET=6,RH=27,EX=p=>EL+p/100*(470-EL-ER);
+emg.setAttribute('viewBox',`0 0 470 ${ET+RH*MUS.length+22}`);
+el('rect',{x:EX(0),y:ET,width:EX(60)-EX(0),height:RH*MUS.length,fill:'var(--stance)'},emg);
+const rowsE={};
+MUS.forEach((mu,i)=>{const y=ET+i*RH; const g=el('g',{tabindex:0,role:'button','aria-label':'Resaltar '+mu.name,style:'cursor:pointer'},emg);
+  const hl=el('rect',{x:0,y,width:470,height:RH,fill:'var(--act)','fill-opacity':0},g);
+  el('text',{x:EL-8,y:y+RH/2+3,'text-anchor':'end',style:'font-size:10.5px;fill:var(--ink)'+(mu.lat?';font-style:italic':'')},g).textContent=mu.name;
+  for(const [s,e] of mu.w){ const segs=e>100?[[s,100],[0,e-100]]:[[s,e]];
+    for(const [a,b] of segs) el('rect',{x:EX(a),y:y+6,width:EX(b)-EX(a),height:RH-12,fill:'var(--act)',rx:2},g);}
+  el('line',{x1:EL,x2:470-ER,y1:y+RH,y2:y+RH,stroke:'var(--line)','stroke-width':.5},emg);
+  g.onclick=()=>toggleSel(mu.id); g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleSel(mu.id);}};
+  rowsE[mu.id]=hl;});
+for(const p of [0,20,40,60,80,100]) el('text',{x:EX(p),y:ET+RH*MUS.length+14,'text-anchor':'middle'},emg).textContent=p+'%';
+el('line',{x1:EX(60),x2:EX(60),y1:ET,y2:ET+RH*MUS.length,stroke:'var(--muted)','stroke-dasharray':'3 3','stroke-width':.8},emg);
+const ecur=el('line',{y1:ET,y2:ET+RH*MUS.length,stroke:'var(--cursor)','stroke-width':1.2},emg);
+function toggleSel(id){sel=sel===id?null:id; for(const k in rowsE) rowsE[k].setAttribute('fill-opacity',k===sel?0.12:0); lastChips=''; render();}
+
+/* ---------- extremos y tabla ---------- */
+function ext(k,a,b,sgn){let best={x:a,v:F[k](a)};for(let x=a;x<=b;x+=0.1){const v=F[k](x);if(sgn*v>sgn*best.v)best={x,v};}return best;}
+const EXT={
+  hipIC:{x:0,v:F.hip(0)}, hipExt:ext('hip',30,70,-1), hipFlex:ext('hip',70,100,1),
+  kneeLR:ext('knee',0,30,1), kneeSt:ext('knee',25,50,-1), kneeTO:{x:60,v:F.knee(60)}, kneeSw:ext('knee',60,90,1),
+  ankleLR:ext('ankle',0,20,-1), ankleMax:ext('ankle',20,55,1), anklePF:ext('ankle',55,75,-1),
+  pelMin:ext('pelvis',0,100,-1), pelMax:ext('pelvis',0,100,1),
+  pA2:ext('pAnkle',40,65,1), pH3:ext('pHip',50,75,1), pK1:ext('pKnee',0,20,-1), pK4:ext('pKnee',80,100,-1)
+};
+(function(){
+  const pct=v=>fmt(v)+' %';
+  const evRows=EV;
+  let h='<caption class="sr">Valores en los eventos del ciclo</caption><tr><th>Evento</th><th>%</th><th>Pelvis</th><th>Cadera</th><th>Rodilla</th><th>Tobillo</th><th>P tobillo</th><th>P rodilla</th><th>P cadera</th></tr>';
+  for(const e of evRows){const x=e.p;h+=`<tr><td>${e.n}</td><td>${fmt(e.p)}</td><td>${fmt(F.pelvis(x))}</td><td>${fmt(F.hip(x))}</td><td>${fmt(F.knee(x))}</td><td>${fmt(F.ankle(x))}</td><td>${fmt(F.pAnkle(x),1)}</td><td>${fmt(F.pKnee(x),1)}</td><td>${fmt(F.pHip(x),1)}</td></tr>`;}
+  document.getElementById('evTable').innerHTML=h;
+  const rows=[
+    ['Pelvis','anteversión mínima / máxima',`${fmt(EXT.pelMin.v)}° / ${fmt(EXT.pelMax.v)}°`,''],
+    ['Cadera','flexión al contacto',fmt(EXT.hipIC.v)+'°','0 %'],
+    ['Cadera','extensión máxima',fmt(-EXT.hipExt.v)+'°',pct(EXT.hipExt.x)],
+    ['Cadera','flexión máxima de balanceo',fmt(EXT.hipFlex.v)+'°',pct(EXT.hipFlex.x)],
+    ['Rodilla','flexión de aceptación del peso',fmt(EXT.kneeLR.v)+'°',pct(EXT.kneeLR.x)],
+    ['Rodilla','flexión mínima en apoyo',fmt(EXT.kneeSt.v)+'°',pct(EXT.kneeSt.x)],
+    ['Rodilla','flexión al despegue',fmt(EXT.kneeTO.v)+'°','60 %'],
+    ['Rodilla','flexión máxima de balanceo',fmt(EXT.kneeSw.v)+'°',pct(EXT.kneeSw.x)],
+    ['Tobillo','flexión plantar inicial',fmt(-EXT.ankleLR.v)+'°',pct(EXT.ankleLR.x)],
+    ['Tobillo','dorsiflexión máxima en apoyo',fmt(EXT.ankleMax.v)+'°',pct(EXT.ankleMax.x)],
+    ['Tobillo','flexión plantar máxima',fmt(-EXT.anklePF.v)+'°',pct(EXT.anklePF.x)],
+    ['Tobillo','generación máxima (A2)',fmt(EXT.pA2.v,1)+' W/kg',pct(EXT.pA2.x)],
+    ['Cadera','generación en el prebalanceo (H3)',fmt(EXT.pH3.v,1)+' W/kg',pct(EXT.pH3.x)],
+    ['Rodilla','absorción en la respuesta a la carga (K1)',fmt(EXT.pK1.v,1)+' W/kg',pct(EXT.pK1.x)],
+    ['Rodilla','absorción al final del balanceo (K4)',fmt(EXT.pK4.v,1)+' W/kg',pct(EXT.pK4.x)]
+  ];
+  document.getElementById('exTable').innerHTML='<caption class="sr">Extremos de las curvas</caption><tr><th>Segmento</th><th>Valor</th><th>Magnitud</th><th>Momento</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td style="text-align:left">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+})();
+
+/* ---------- fases como controles ---------- */
+const phEl=document.getElementById('phases');
+PH.forEach((p,i)=>{const b=document.createElement('button');b.type='button';b.textContent=p.k;b.title=`${p.n} (${p.a}–${p.b} %)`;
+  b.setAttribute('aria-label',`${p.n}, ${p.a} a ${p.b} % del ciclo`);if(i>=4)b.classList.add('sw');
+  b.onclick=()=>{x=p.a;curPh=i;render();setPlaying(false);};phEl.appendChild(b);});
+const evEl=document.getElementById('events');
+EV.slice(0,-1).forEach(e=>{const s=document.createElement('span');s.textContent=e.k;s.title=e.n+' ('+fmt(e.p)+' %)';s.style.left=e.p+'%';if(e.conv)s.classList.add('conv');evEl.appendChild(s);});
+function phaseIdx(x){return x>=100?0:PH.findIndex(p=>x>=p.a&&x<p.b);}
+const phaseOf=x=>(x<PCI.b||x>=100)?PCI:PH[phaseIdx(x)];
+const leftName=x=>{const xl=((x+50)%100);return (xl<PCI.b?PCI:PH[phaseIdx(xl)]).n.toLowerCase();};
+function eventAt(x){return EV.find(e=>Math.abs(x-e.p)<0.75)||null;}
+const val=v=>typeof v==='function'?v():v;
+
+/* ---------- panel de fase ---------- */
+const $=id=>document.getElementById(id);
+const phName=$('phName'),phRange=$('phRange'),chips=$('chips'),evName=$('evName'),live=$('live'),contra=$('contra');
+let lastPh='',lastChips='',lastEv='',curPh=0;
+function panel(x){
+  const i=phaseIdx(x), p=phaseOf(x), key0=p.k+(x>=100?'n':'');
+  if(key0!==lastPh){lastPh=key0;phName.textContent=x>=100?'Contacto inicial del ciclo siguiente':p.n;
+    phRange.textContent=x>=100?'100 % = 0 % del ciclo siguiente · comienza un nuevo apoyo':p===PCI?'Fase · 0–2 % del ciclo, dentro de la respuesta a la carga · apoyo':`Fase · ${p.a}–${p.b} % del ciclo · ${i<4?'apoyo':'balanceo'}`;
+    $('fxObj').textContent=val(p.obj);$('fxMov').textContent=val(p.mov);$('fxMec').innerHTML=val(p.mec).replace(/(tibialis anterior|gluteus maximus|soleus|gastrocnemius|rectus femoris|iliopsoas)/gi,'<i>$1</i>');
+    $('qTxt').textContent='Pregunta: '+p.q;$('qAns').textContent=p.ans;$('qBox').open=false;
+    [...phEl.children].forEach((c,j)=>c.classList.toggle('on',j===i));
+    $('mPh').textContent=p.n;}
+  contra.innerHTML=`<span class="side-l">Miembro izquierdo</span>: ${leftName(x)} (${fmt((x+50)%100)} % de su ciclo)`;
+  const e=eventAt(x), et=e?`Evento: ${e.n} (${fmt(e.p)} %)`:'';
+  if(et!==lastEv){lastEv=et;evName.textContent=et;}
+  const on=MUS.filter(mu=>act(mu,x));
+  const key=on.map(mu=>mu.id+fnAt(mu,x)).join()+'|'+sel;
+  if(key!==lastChips){lastChips=key;
+    chips.innerHTML=on.length?on.map(mu=>`<button type="button" class="chip" data-id="${mu.id}" aria-pressed="${mu.id===sel}">${mName(mu)}</button>`).join(''):'<span class="chip none">Ningún grupo de los representados está activo</span>';
+    const m=MUS.find(mu=>mu.id===sel);
+    $('musInfo').innerHTML=m?`<b>${mName(m)}</b> · activo ${winTxt(m)} del ciclo. ${act(m,x)?'Ahora '+fnAt(m,x)+'.':'Ahora inactivo.'}`:(on.length?on.map(mu=>`${mName(mu)}: ${fnAt(mu,x)}`).join('. ')+'.':'');}
+}
+chips.onclick=e=>{const b=e.target.closest('button.chip');if(b)toggleSel(b.dataset.id);};
+function announce(x){const e=eventAt(x);
+  live.textContent=`${fmt(x)} %. ${phaseOf(x).n}${e?'; evento: '+e.n:''}. Cadera ${rdHip(F.hip(x))}, rodilla ${deg(F.knee(x))} flexión, tobillo ${rdAnk(F.ankle(x))}.`;}
+
+/* ---------- reproducción ---------- */
+const playB=$('play'),speedS=$('speed'),scrub=$('scrub'),pctEl=$('pct'),loopC=$('loopPh');
+let x=0,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=null;
+function render(){draw(x);ups.forEach(f=>f(x));ecur.setAttribute('x1',EX(x));ecur.setAttribute('x2',EX(x));panel(x);
+  scrub.value=x.toFixed(1);pctEl.textContent=fmt(x)+' %';$('mScrub').value=x.toFixed(1);$('mPct').textContent=fmt(x)+' %';}
+function loop(ts){ if(playing){ if(last!==null){ const dx=((ts-last)/1000)/(T/parseFloat(speedS.value))*100;
+      if(loopC.checked){const p=PH[curPh]; x+=dx; if(x>=p.b) x=p.a+(x-p.b)%(p.b-p.a);}
+      else {x+=dx; if(x>=100)x-=100;} }
+    last=ts; render(); }
+  else last=null; requestAnimationFrame(loop);}
+function setPlaying(p){playing=p;playB.textContent=p?'Pausar':'Reproducir';$('mPlay').textContent=playB.textContent;if(!p)announce(x);}
+playB.textContent=playing?'Pausar':'Reproducir';
+playB.onclick=()=>{if(!playing&&x>=100)x=0;if(!playing&&loopC.checked)curPh=Math.max(0,phaseIdx(x));setPlaying(!playing);};
+$('mPlay').onclick=()=>playB.click();
+loopC.onchange=()=>{curPh=Math.max(0,phaseIdx(x));};
+function stepBy(dir){let n=Math.round(x)+dir; if(n>100)n-=100; if(n<0)n+=100; x=n; render(); setPlaying(false);}
+$('fwd').onclick=()=>stepBy(1); $('back').onclick=()=>stepBy(-1);
+function evJump(dir){const ps=[...new Set(EV.map(e=>e.p))].sort((a,b)=>a-b);
+  let n= dir>0 ? ps.find(p=>p>x+0.01) : [...ps].reverse().find(p=>p<x-0.01);
+  if(n===undefined) n= dir>0 ? ps[1] : ps[ps.length-2];
+  x=n; render(); setPlaying(false);}
+$('evNext').onclick=()=>evJump(1); $('evPrev').onclick=()=>evJump(-1);
+addEventListener('keydown',e=>{const t=e.target.tagName;
+  if(t==='SELECT'||t==='INPUT'||e.altKey||e.ctrlKey||e.metaKey)return;
+  if(e.key==='ArrowRight'){e.preventDefault();e.shiftKey?evJump(1):stepBy(1);} else if(e.key==='ArrowLeft'){e.preventDefault();e.shiftKey?evJump(-1):stepBy(-1);}
+  else if(e.key===' '&&t!=='BUTTON'&&t!=='SUMMARY'){e.preventDefault();playB.click();}});
+scrub.oninput=()=>{x=parseFloat(scrub.value);render();setPlaying(false);};
+$('mScrub').oninput=()=>{x=parseFloat($('mScrub').value);render();setPlaying(false);};
+dbgC.onchange=()=>{$('qa').hidden=!dbgC.checked;render();};
+addEventListener('resize',()=>{resize();render();});
+const fsB=$('fs');
+if(!document.fullscreenEnabled) fsB.hidden=true;
+fsB.onclick=()=>{ if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});} else document.documentElement.requestFullscreen().catch(()=>{fsB.hidden=true;}); };
+document.addEventListener('fullscreenchange',()=>{fsB.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';resize();render();});
+if(window.matchMedia){matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',render);}
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+/* barra fija en el teléfono cuando la figura sale de la vista */
+if('IntersectionObserver' in window){ new IntersectionObserver(es=>{ $('mini').classList.toggle('show',!es[0].isIntersecting); }).observe(cv); }
+/* vista básica / avanzada */
+function setView(adv){document.body.classList.toggle('adv',adv);$('vBas').setAttribute('aria-pressed',!adv);$('vAdv').setAttribute('aria-pressed',adv);store.set('cms-view',adv?'adv':'bas');resize();render();}
+$('vBas').onclick=()=>setView(false); $('vAdv').onclick=()=>setView(true);
+/* acceso de prueba: ?x=53&dbg=1&v=adv abre en pausa en ese porcentaje */
+const qs=new URLSearchParams(location.search);
+if(qs.has('x')){x=Math.min(100,Math.max(0,parseFloat(qs.get('x'))||0));playing=false;playB.textContent='Reproducir';}
+if(qs.get('dbg')==='1'){dbgC.checked=true;$('qa').hidden=false;}
+setJoint(joint);
+setView(qs.get('v')? qs.get('v')==='adv' : store.get('cms-view')==='adv');
+resize();render();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
