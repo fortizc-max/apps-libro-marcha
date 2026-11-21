@@ -475,7 +475,7 @@ function draw(x){
   const TL=0.27*u, lean=rad(4), dax={x:Math.sin(lean),y:-Math.cos(lean)}, nrm={x:Math.cos(lean),y:Math.sin(lean)};   // tronco: cadera–hombro 0,288 de la talla (Winter, 2009)
   const sh={x:pc.x+dax.x*TL,y:pc.y+dax.y*TL};
   const arm=(t,col,al)=>{const a=t*0.7;const e={x:sh.x+Math.sin(a)*u*0.198,y:sh.y+Math.cos(a)*u*0.198};
-    const w={x:e.x+Math.sin(a+0.45)*u*0.27,y:e.y+Math.cos(a+0.45)*u*0.27};
+    const w={x:e.x+Math.sin(a+0.45)*u*0.22,y:e.y+Math.cos(a+0.45)*u*0.22};   // antebrazo y mano hasta el puño
     cx.globalAlpha=al;cx.strokeStyle=col;cx.lineWidth=u*0.022;cx.lineCap='round';cx.beginPath();cx.moveTo(sh.x,sh.y);cx.lineTo(e.x,e.y);cx.lineTo(w.x,w.y);cx.stroke();cx.globalAlpha=1;};
   arm(R.th,cL,.45);
   drawLeg(Lg,P,cL,null,u,.45);
