@@ -6,7 +6,9 @@
 <title>Ciclo de marcha sagital</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Versión 4 (21-11-2026): fuerza de reacción del piso sobre la figura y en gráficas, momentos como círculos
+/* Versión 5 (21-11-2026): cinemática, fuerza de reacción y momentos de un adulto sano del laboratorio (CTR-005),
+   pie con articulación metatarsofalángica, segmentos con proporciones antropométricas.
+   Versión 4 (21-11-2026): fuerza de reacción del piso sobre la figura y en gráficas, momentos como círculos
    en las articulaciones (idea de Vaughan et al., 1999, apéndice A), momentos de inercia en el balanceo.
    Versión 3 (17-11-2026). Revisión externa del 17-11-2026 aplicada: potencia = momento × velocidad angular;
    ángulos ajustados a las curvas normativas del libro; fases como controles; vista básica y avanzada.
@@ -47,7 +49,7 @@ header p{margin:2px 0 0;color:var(--muted);font-size:14px}
 canvas{display:block;width:100%;height:auto;border-radius:6px;background:var(--surface)}
 button,select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:6px 11px;cursor:pointer}
 button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.phases{display:grid;grid-template-columns:10fr 20fr 20fr 10fr 13fr 14fr 13fr;margin-top:8px;border-radius:5px;overflow:hidden;gap:1px;background:var(--line)}
+.phases{display:grid;grid-template-columns:10fr 27fr 13fr 10fr 13fr 14fr 13fr;margin-top:8px;border-radius:5px;overflow:hidden;gap:1px;background:var(--line)}
 .phases button{border:0;border-radius:0;padding:6px 0;font-family:var(--f-data);font-size:11.5px;background:var(--stance);color:var(--ink);white-space:nowrap;overflow:hidden}
 .phases button.sw{background:var(--surface)}
 .phases button.on{background:var(--ink);color:var(--surface);font-weight:600}
@@ -115,7 +117,7 @@ body.adv .basic-only{display:none!important}
   <header>
     <div>
       <h1>Ciclo de marcha en el plano sagital</h1>
-      <p>Miembro <span class="side-r">derecho en azul</span> (referencia del ciclo) e <span class="side-l">izquierdo en rojo</span>. <span class="warn">Modelo ilustrativo; no representa valores de referencia.</span></p>
+      <p>Miembro <span class="side-r">derecho en azul</span> (referencia del ciclo) e <span class="side-l">izquierdo en rojo</span>. <span class="warn">Marcha de un adulto sano del laboratorio, en un modelo plano; no representa valores de referencia.</span></p>
     </div>
     <div class="seg" role="group" aria-label="Vista">
       <button type="button" id="vBas" aria-pressed="true">Vista básica</button>
@@ -148,7 +150,7 @@ body.adv .basic-only{display:none!important}
             <select id="speed">
               <option value="0.25">0,25×</option>
               <option value="0.5" selected>0,5×</option>
-              <option value="1">1× (ciclo de 1,1 s)</option>
+              <option value="1">1× (ciclo de 1,0 s)</option>
             </select></label>
           <button id="fs" type="button" class="adv-only">Pantalla completa</button>
           <label class="chk adv-only"><input type="checkbox" id="dbg"> Mostrar contactos</label>
@@ -190,13 +192,13 @@ body.adv .basic-only{display:none!important}
 
       <section class="panel adv-only" id="kinetSec">
         <h2>Momento y potencia articular netos</h2>
-        <p class="note">Momento interno, en Nm/kg: positivo, plantiflexor en el tobillo y extensor en rodilla y cadera. Potencia, en W/kg: positivo, generación neta; negativo, absorción neta. La potencia se calcula en esta página como momento × velocidad angular de la propia animación, de modo que se anula cuando la articulación se detiene. Cada articulación tiene su propia escala.</p>
+        <p class="note">Momento interno, en Nm/kg: positivo, plantiflexor en el tobillo y extensor en rodilla y cadera. Potencia, en W/kg: positivo, generación neta; negativo, absorción neta. Momento y potencia del mismo sujeto, calculados por dinámica inversa en el laboratorio. Cada articulación tiene su propia escala.</p>
         <div id="kinet"></div>
       </section>
 
       <section class="panel adv-only" id="grfSec">
         <h2>Fuerza de reacción del piso</h2>
-        <p class="note">En múltiplos del peso corporal. <span class="side-r">Derecho</span>, <span class="side-l">izquierdo</span> y, en gris, la suma vertical de los dos pies: supera el peso en el doble apoyo, cuando el centro de masa frena su descenso. Anteroposterior: negativo, frenado; positivo, propulsión. Forma esquemática, ajustada para que la fuerza vertical media del ciclo sea igual al peso y el impulso anteroposterior neto sea nulo.</p>
+        <p class="note">En múltiplos del peso corporal. <span class="side-r">Derecho</span>, <span class="side-l">izquierdo</span> y, en gris, la suma vertical de los dos pies: supera el peso en el doble apoyo, cuando el centro de masa frena su descenso. Anteroposterior: negativo, frenado; positivo, propulsión. Datos medidos en el laboratorio, sin reescalar.</p>
         <div class="grid" id="grfPlots"></div>
       </section>
 
@@ -219,18 +221,20 @@ body.adv .basic-only{display:none!important}
         <details class="meth">
           <summary>Procedencia de las cifras y limitaciones</summary>
           <ul>
-            <li><b>Fases y eventos:</b> Perry (1992), caps. 1–2. El contacto inicial (0–2 %) queda incluido en la respuesta a la carga.</li>
-            <li><b>Ángulos:</b> ajustados por mínimos cuadrados a las curvas medias de referencia del libro <i>Análisis de la marcha</i> (pelvis, cadera, rodilla y tobillo en el plano sagital), con los eventos de Perry como restricciones del contacto del pie: talón al 0 %, antepié al 10 %, pie plano hasta la elevación del talón al 30 %, contacto contralateral al 50 %, despegue al 60 %, tibia vertical al 87 %, doble apoyo con los dos pies en el suelo y sin deslizamiento. La pelvis reproduce la curva del libro. Diferencia media con las demás curvas: rodilla 1,6°, tobillo 2,5° y cadera 4,5°; en la cadera, la flexión del balanceo terminal es mayor y la extensión máxima menor que en el libro, por las restricciones de contacto del modelo.</li>
-            <li><b>Momentos:</b> tobillo y cadera, curva media de referencia del libro, suavizada; rodilla, forma esquemática según Winter (2009).</li>
-            <li><b>Potencia:</b> calculada aquí como momento × velocidad angular, con un ciclo de 1,1 s. No procede de dinámica inversa de un sujeto. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale al acortamiento de los fascículos (Honert y Zelik, 2016).</li>
-            <li><b>Fuerza de reacción del piso:</b> forma esquemática con los rasgos del capítulo 1 del libro (doble joroba con picos de 1,1 veces el peso, valle hacia el 30 %; frenado y propulsión de alrededor de 0,2 veces el peso), escalada para que la fuerza vertical media del ciclo sea igual al peso corporal y el impulso anteroposterior neto sea nulo. La flecha parte del centro de presión: el talón mientras solo él toca el suelo, el antepié desde la elevación del talón y, con el pie plano, el punto que exige el momento del tobillo de esta página en una aproximación cuasiestática. Con esa construcción, la flecha pasa por el lado de la rodilla y del tobillo que corresponde al momento mostrado en el <span id="qaGrf">95</span> % de los instantes del apoyo. No se prolonga hasta la cadera: sin rotación pélvica ni tronco con masa, el modelo no ubica bien la cadera respecto de la línea de la fuerza.</li>
-            <li><b>Momentos sobre la figura:</b> círculos en la cadera, la rodilla y el tobillo del miembro derecho, con radio proporcional al momento interno y la misma escala para las tres articulaciones; relleno, extensor (cadera y rodilla) o plantiflexor (tobillo); hueco, flexor o dorsiflexor. La representación sigue la de Vaughan et al. (1999), apéndice A. En el balanceo no hay fuerza de reacción: los momentos que quedan aceleran y frenan el miembro, y desaparecerían si se ignorara su inercia (Vaughan et al., 1999).</li>
-            <li><b>Activación muscular:</b> ventanas de temporalidad según Perry (1992), caps. 4–6. La función de los plantiflexores sigue a Neptune et al. (2001) y Francis et al. (2013).</li>
-            <li><b>Límite del 73 %:</b> Perry sitúa el fin del balanceo inicial cuando el pie que oscila queda frente al de apoyo, «aproximadamente un tercio del balanceo». Es un límite convencional: en este modelo los tobillos se cruzan hacia el <span id="adjPct">80</span> %, y ese evento se marca por separado.</li>
-            <li><b>Limitaciones:</b> pie de un solo segmento, sin articulación metatarsofalángica; sin rotación pélvica ni movimientos frontales. El miembro izquierdo repite el derecho con medio ciclo de desfase. La velocidad de reproducción solo cambia la animación; una marcha más lenta tendría otras curvas.</li>
+            <li><b>Origen de los datos:</b> un adulto sano del laboratorio de marcha del Instituto Roosevelt (código CTR-005; 26 años, 165 cm), media de tres caminatas y de los dos lados. Cinemática, fuerza de reacción del piso y momentos articulares medidos en el laboratorio; los momentos, por dinámica inversa. Es la marcha de una persona, no una curva de referencia: las bandas de normalidad están en el capítulo 1 del libro.</li>
+            <li><b>Modelo:</b> plano, con muslo, pierna, pie y dedos; longitudes proporcionales a la estatura (Winter, 2009: muslo 0,245, pierna 0,246 y pie 0,152 de la talla). El pie gira sobre el talón hasta quedar plano, se apoya entero hasta la elevación del talón y después gira sobre las cabezas de los metatarsianos con los dedos planos en el suelo; los dedos llegan a unos <span id="muTO">58</span>° de dorsiflexión en el despegue y conservan una extensión ligera en el balanceo.</li>
+            <li><b>Ángulos:</b> los del sujeto, con las correcciones mínimas para que el pie no se hunda ni flote: diferencia media de 0,2° en la pelvis, 0,8° en la cadera, 0,6° en la rodilla y 0,9° en el tobillo, y máxima de 2,3°.</li>
+            <li><b>Fases y eventos:</b> nombres y límites de Perry (1992), caps. 1–2, salvo los que se observan en el sujeto: el pie queda plano hacia el 10 %, el talón se eleva hacia el 37 % y el despegue ocurre hacia el 60 %. El contacto inicial (0–2 %) queda incluido en la respuesta a la carga.</li>
+            <li><b>Momentos y fuerza de reacción:</b> los del sujeto. La flecha parte del centro de presión: el talón mientras solo él toca el suelo, las cabezas de los metatarsianos o los dedos desde la elevación del talón y, con el pie plano, el punto que exige el momento del tobillo en una aproximación cuasiestática. La flecha pasa por el lado de la rodilla y del tobillo que corresponde al momento mostrado en el <span id="qaGrf">95</span> % de los instantes del apoyo.</li>
+            <li><b>Potencia:</b> la del sujeto, medida en el laboratorio. Como comprobación, el producto del momento por la velocidad angular de la figura da un pico del tobillo en el despegue de <span id="mwA2"></span> W/kg, frente a <span id="labA2"></span> W/kg medidos. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale al acortamiento de los fascículos (Honert y Zelik, 2016).</li>
+            <li><b>Momentos sobre la figura:</b> círculos en la cadera, la rodilla y el tobillo del miembro derecho, con radio proporcional al momento interno y la misma escala para las tres articulaciones; relleno, extensor (cadera y rodilla) o plantiflexor (tobillo); hueco, flexor o dorsiflexor (Vaughan et al., 1999, apéndice A). En el balanceo no hay fuerza de reacción: los momentos que quedan aceleran y frenan el miembro, y desaparecerían si se ignorara su inercia (Vaughan et al., 1999).</li>
+            <li><b>Activación muscular:</b> ventanas de temporalidad según Perry (1992), caps. 4–6; no proceden del sujeto. La función de los plantiflexores sigue a Neptune et al. (2001) y Francis et al. (2013).</li>
+            <li><b>Límites del 73 y el 87 %:</b> Perry sitúa el fin del balanceo inicial cuando el pie que oscila queda frente al de apoyo, y el del balanceo medio cuando la tibia queda vertical. Son límites convencionales: en este sujeto los tobillos se cruzan hacia el <span id="adjPct">80</span> % y la tibia llega a la vertical hacia el <span id="tvPct">86</span> %; esos eventos se marcan por separado.</li>
+            <li><b>Limitaciones:</b> sin rotación ni inclinación lateral de la pelvis ni movimientos frontales. El miembro izquierdo repite el derecho con medio ciclo de desfase. La velocidad de reproducción solo cambia la animación; una marcha más lenta tendría otras curvas.</li>
           </ul>
+
           <p><b>Referencias.</b> Perry J. <i>Gait Analysis: Normal and Pathological Function</i>. Thorofare: SLACK; 1992. · Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4.ª ed. Hoboken: Wiley; 2009. · Neptune RR, Kautz SA, Zajac FE. Contributions of the individual ankle plantar flexors to support, forward progression and swing initiation during walking. <i>J Biomech</i>. 2001;34(11):1387–98. · Francis CA, Lenz AL, Lenhart RL, Thelen DG. The modulation of forward propulsion, vertical support, and center of pressure by the plantarflexors during human walking. <i>Gait Posture</i>. 2013;38(4):993–7. doi:10.1016/j.gaitpost.2013.05.009 · Honert EC, Zelik KE. Inferring muscle-tendon unit power from ankle joint power during the push-off phase of human walking: insights from a multiarticular EMG-driven model. <i>PLoS One</i>. 2016;11(10):e0163169. doi:10.1371/journal.pone.0163169 · Vaughan CL, Davis BL, O'Connor JC. <i>Dynamics of Human Gait</i>. 2.ª ed. Ciudad del Cabo: Kiboho Publishers; 1999.</p>
-          <p>Versión 4.0 · 21-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
+          <p>Versión 5.0 · 21-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
         </details>
       </section>
     </div>
@@ -250,19 +254,21 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 const fmt=(v,d=0)=>{const s=(Math.abs(v)<Math.pow(10,-d)/2?0:v).toFixed(d).replace('.',',');return s.replace(/^-/,'−');};
 const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 
-/* ---------- datos (generados por herramientas/fit9.py y herramientas/datos_js.py) ----------
-   NODES: ángulos cada 2 % (0–98 %), Catmull-Rom periódico, ajustados a las curvas del libro con restricciones de contacto
-   (fit11.py: peso 8 en la rodilla entre el 92 y el 22 %, para conservar la flexión de la respuesta a la carga, y peso 15 en la pelvis,
-   que reproduce la curva del libro; 21-11-2026).
-   MOM_ANKLE, MOM_HIP: momento interno medio del libro (Nm/kg) cada 1 %, suavizado (media móvil 1-2-3-2-1). */
+/* ---------- datos: CTR-005, adulto sano del laboratorio (media de tres caminatas y de los dos lados) ----------
+   NODES: ángulos cada 2 % (0–98 %), Catmull-Rom periódico, ajustados a los del sujeto con el contacto cerrado (fit_v5.py).
+   MOM_*: momento interno (N·m/kg); GRF_*: fuerza de reacción (× peso); POW_LAB: potencia del laboratorio (W/kg). Cada 1 %. */
 const NODES={
-  pelvis:[12.81,12.48,12.22,11.95,11.73,11.56,11.51,11.51,11.59,11.73,11.91,12.09,12.25,12.40,12.53,12.59,12.71,12.78,12.86,12.93,12.98,12.99,12.95,12.87,12.70,12.53,12.28,12.01,11.72,11.47,11.24,11.17,11.18,11.27,11.42,11.62,11.84,12.08,12.30,12.51,12.67,12.84,13.02,13.15,13.26,13.36,13.38,13.36,13.29,13.17],
-  hip:[24.92,23.69,23.13,22.90,23.04,23.41,23.04,21.92,20.22,18.19,16.03,13.88,11.85,10.06,8.51,6.70,3.71,0.48,-2.25,-4.11,-5.10,-5.52,-5.89,-6.49,-7.00,-7.17,-6.35,-4.82,-2.77,-0.15,2.93,5.41,7.39,9.33,11.55,14.15,17.14,20.53,24.32,28.34,32.14,34.94,36.56,37.41,37.30,36.34,34.95,32.97,30.28,27.40],
-  knee:[6.79,7.73,9.15,10.97,12.70,14.01,14.62,14.55,13.97,13.00,11.76,10.21,8.41,6.57,4.81,3.43,2.95,2.57,2.22,2.01,2.09,2.62,3.74,5.57,8.14,11.42,15.13,19.42,24.33,29.58,34.97,41.15,47.50,53.10,57.33,59.94,60.96,60.54,58.78,55.59,50.69,43.80,35.62,27.64,21.33,16.89,13.37,10.06,7.55,6.44],
-  ankle:[-4.19,-3.52,-1.76,0.00,1.35,2.19,3.07,4.14,5.34,6.55,7.62,8.40,8.81,8.90,8.87,8.92,9.11,9.86,10.61,10.90,10.48,9.34,7.71,5.76,3.49,1.12,-1.10,-3.24,-5.64,-8.35,-11.02,-12.79,-13.29,-12.51,-10.70,-8.21,-5.41,-2.58,0.11,2.53,4.40,5.18,4.89,4.11,3.10,1.97,0.74,-0.54,-1.90,-3.29]
+  pelvis:[10.70,10.88,10.85,10.59,10.06,9.19,9.07,9.32,9.61,9.83,9.97,10.03,9.99,9.90,9.88,10.00,10.18,10.37,10.47,10.57,10.77,10.94,10.95,10.82,10.57,10.25,9.96,9.70,9.38,8.92,8.28,8.17,8.34,8.52,8.66,8.78,8.86,8.86,8.80,8.78,8.94,9.20,9.38,9.42,9.38,9.56,9.83,9.94,10.02,10.28],
+  hip:[32.37,32.35,31.97,31.27,30.41,29.47,27.30,24.39,21.31,18.39,15.67,13.09,10.56,8.02,5.44,2.88,0.54,-1.42,-2.99,-4.44,-6.07,-7.74,-9.23,-10.40,-11.20,-11.64,-11.78,-11.48,-10.43,-8.34,-5.17,-1.85,1.67,5.47,9.40,13.23,16.80,20.04,22.93,25.37,27.25,28.79,30.29,31.81,33.08,33.57,33.41,33.05,32.68,32.44],
+  knee:[5.27,8.36,11.88,15.15,17.51,18.50,18.17,16.86,15.02,12.92,10.70,8.42,6.15,3.98,2.03,0.35,-1.01,-2.01,-2.65,-2.89,-2.78,-2.35,-1.55,-0.33,1.37,3.69,6.84,10.94,15.95,21.75,28.16,35.48,42.69,48.62,52.67,54.82,55.33,54.45,52.15,48.22,42.92,36.84,30.43,23.97,17.69,11.93,7.15,3.86,2.51,3.11],
+  ankle:[2.01,0.02,-1.59,-2.39,-2.37,-1.64,-0.06,1.79,3.32,4.37,5.01,5.36,5.59,5.90,6.51,7.49,8.64,9.78,10.83,11.76,12.71,13.52,13.82,13.40,12.03,9.50,5.67,0.64,-5.24,-11.18,-16.03,-18.59,-18.62,-16.57,-13.17,-9.09,-4.79,-0.59,3.03,5.34,6.21,6.26,6.07,5.87,5.73,5.67,5.64,5.46,4.92,3.77]
 };
-const MOM_ANKLE=[-0.003,-0.008,-0.018,-0.029,-0.031,-0.016,0.012,0.047,0.083,0.117,0.147,0.173,0.198,0.222,0.247,0.274,0.302,0.332,0.363,0.397,0.431,0.466,0.501,0.538,0.576,0.616,0.656,0.698,0.741,0.784,0.828,0.873,0.917,0.962,1.006,1.049,1.091,1.132,1.173,1.215,1.257,1.298,1.337,1.372,1.401,1.422,1.433,1.431,1.412,1.374,1.314,1.231,1.120,0.983,0.821,0.647,0.474,0.318,0.190,0.095,0.035,0.004,-0.009,-0.013,-0.013,-0.013,-0.012,-0.011,-0.010,-0.009,-0.008,-0.008,-0.007,-0.006,-0.006,-0.006,-0.006,-0.006,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.007,-0.006,-0.006,-0.005,-0.004,-0.003,-0.002,-0.002,-0.002];
-const MOM_HIP=[0.406,0.641,0.769,0.727,0.560,0.404,0.311,0.258,0.228,0.209,0.193,0.175,0.157,0.146,0.136,0.121,0.098,0.071,0.043,0.019,-0.001,-0.018,-0.032,-0.047,-0.067,-0.092,-0.120,-0.149,-0.175,-0.200,-0.223,-0.247,-0.271,-0.296,-0.322,-0.350,-0.382,-0.418,-0.457,-0.498,-0.540,-0.585,-0.634,-0.686,-0.740,-0.795,-0.849,-0.895,-0.927,-0.937,-0.921,-0.875,-0.796,-0.692,-0.587,-0.511,-0.473,-0.457,-0.432,-0.379,-0.300,-0.222,-0.162,-0.129,-0.111,-0.099,-0.086,-0.074,-0.061,-0.049,-0.038,-0.029,-0.022,-0.018,-0.017,-0.019,-0.023,-0.029,-0.036,-0.043,-0.050,-0.054,-0.054,-0.051,-0.042,-0.026,-0.005,0.023,0.056,0.093,0.131,0.169,0.202,0.229,0.246,0.254,0.250,0.237,0.210,0.258];
+const MOM_ANKLE=[-0.090,-0.046,-0.074,-0.084,-0.082,-0.069,-0.043,-0.006,0.037,0.081,0.119,0.151,0.178,0.201,0.223,0.246,0.271,0.296,0.323,0.348,0.374,0.399,0.424,0.451,0.478,0.506,0.535,0.564,0.595,0.627,0.663,0.704,0.748,0.798,0.852,0.912,0.975,1.044,1.116,1.193,1.271,1.351,1.428,1.501,1.567,1.623,1.665,1.691,1.698,1.683,1.641,1.569,1.462,1.314,1.131,0.924,0.708,0.496,0.293,0.161,0.038,-0.006,-0.006,-0.005,-0.005,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.005,-0.005,-0.005,-0.006,-0.006,-0.007,-0.007,-0.008,-0.009,-0.009,-0.009,-0.010,-0.011,-0.011,-0.011,-0.012,-0.012,-0.012,-0.012,-0.012,-0.011,-0.011,-0.010,-0.010];
+const MOM_KNEE=[-0.142,-0.359,-0.204,-0.094,-0.001,0.091,0.173,0.241,0.290,0.320,0.333,0.329,0.315,0.295,0.271,0.239,0.204,0.167,0.130,0.094,0.061,0.028,-0.006,-0.040,-0.073,-0.106,-0.138,-0.169,-0.200,-0.233,-0.266,-0.301,-0.335,-0.367,-0.397,-0.424,-0.450,-0.473,-0.494,-0.513,-0.528,-0.539,-0.543,-0.540,-0.531,-0.514,-0.491,-0.460,-0.423,-0.379,-0.330,-0.278,-0.222,-0.167,-0.112,-0.062,-0.018,0.019,0.051,0.077,0.061,0.034,0.032,0.031,0.030,0.029,0.029,0.030,0.029,0.028,0.026,0.023,0.019,0.013,0.007,-0.001,-0.008,-0.016,-0.025,-0.033,-0.041,-0.050,-0.058,-0.066,-0.074,-0.082,-0.089,-0.096,-0.102,-0.106,-0.110,-0.112,-0.113,-0.112,-0.111,-0.109,-0.107,-0.104,-0.100,-0.096];
+const MOM_HIP=[0.322,0.794,0.589,0.483,0.419,0.373,0.353,0.348,0.352,0.359,0.364,0.368,0.365,0.347,0.319,0.284,0.246,0.208,0.170,0.133,0.098,0.064,0.031,0.000,-0.028,-0.054,-0.075,-0.093,-0.106,-0.116,-0.123,-0.130,-0.138,-0.149,-0.165,-0.186,-0.210,-0.238,-0.270,-0.306,-0.348,-0.396,-0.448,-0.499,-0.550,-0.595,-0.634,-0.663,-0.681,-0.684,-0.671,-0.637,-0.582,-0.506,-0.418,-0.329,-0.251,-0.201,-0.207,-0.222,-0.213,-0.187,-0.174,-0.160,-0.145,-0.129,-0.113,-0.096,-0.080,-0.065,-0.050,-0.036,-0.022,-0.010,0.002,0.012,0.022,0.032,0.040,0.049,0.058,0.067,0.075,0.085,0.094,0.102,0.111,0.118,0.125,0.130,0.134,0.136,0.137,0.135,0.132,0.128,0.124,0.119,0.115,0.112];
+const GRF_V=[0.000,0.467,0.468,0.503,0.544,0.597,0.658,0.727,0.796,0.859,0.908,0.943,0.961,0.964,0.954,0.933,0.906,0.875,0.845,0.816,0.790,0.769,0.753,0.742,0.734,0.730,0.727,0.727,0.728,0.730,0.735,0.743,0.755,0.770,0.789,0.811,0.835,0.863,0.893,0.926,0.963,1.002,1.041,1.079,1.112,1.139,1.157,1.166,1.163,1.146,1.114,1.064,0.992,0.898,0.781,0.649,0.510,0.373,0.233,0.154,0.051,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000];
+const GRF_AP=[0.000,-0.051,-0.072,-0.090,-0.104,-0.119,-0.133,-0.145,-0.153,-0.157,-0.155,-0.148,-0.138,-0.127,-0.115,-0.103,-0.093,-0.083,-0.074,-0.067,-0.061,-0.055,-0.051,-0.047,-0.043,-0.039,-0.034,-0.029,-0.024,-0.018,-0.012,-0.006,-0.000,0.005,0.011,0.017,0.022,0.029,0.035,0.043,0.052,0.063,0.075,0.088,0.104,0.120,0.139,0.157,0.176,0.194,0.210,0.223,0.231,0.232,0.223,0.205,0.177,0.142,0.092,0.060,0.021,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000];
+const POW_LAB={ankle:[-0.21,-0.10,-0.17,-0.16,-0.09,-0.02,0.02,0.00,-0.06,-0.13,-0.19,-0.22,-0.23,-0.23,-0.22,-0.20,-0.19,-0.18,-0.18,-0.17,-0.16,-0.14,-0.13,-0.14,-0.17,-0.21,-0.27,-0.31,-0.35,-0.40,-0.45,-0.52,-0.62,-0.73,-0.85,-0.96,-1.05,-1.09,-1.08,-1.02,-0.92,-0.74,-0.50,-0.16,0.28,0.80,1.37,2.00,2.64,3.29,3.94,4.52,4.98,5.26,5.22,4.80,4.01,2.92,1.71,0.86,0.22,-0.02,-0.01,0.00,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.00,0.00,0.00,0.00,0.00,0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.01,-0.01],knee:[0.17,0.79,0.51,0.27,0.01,-0.28,-0.47,-0.50,-0.38,-0.18,0.00,0.13,0.21,0.27,0.32,0.34,0.33,0.29,0.23,0.16,0.10,0.04,-0.02,-0.08,-0.14,-0.20,-0.24,-0.27,-0.30,-0.33,-0.35,-0.36,-0.35,-0.31,-0.25,-0.19,-0.13,-0.08,-0.03,0.02,0.09,0.17,0.29,0.41,0.52,0.63,0.70,0.75,0.78,0.78,0.75,0.70,0.63,0.52,0.39,0.24,0.07,-0.11,-0.29,-0.46,-0.38,-0.21,-0.20,-0.19,-0.17,-0.15,-0.13,-0.10,-0.07,-0.05,-0.03,-0.01,0.00,0.01,0.01,-0.00,-0.02,-0.05,-0.09,-0.14,-0.19,-0.24,-0.30,-0.35,-0.40,-0.44,-0.47,-0.51,-0.53,-0.54,-0.54,-0.52,-0.46,-0.38,-0.27,-0.16,-0.04,0.06,0.13,0.16],hip:[0.12,0.17,0.12,0.08,0.09,0.13,0.22,0.35,0.49,0.61,0.69,0.74,0.76,0.74,0.71,0.65,0.57,0.48,0.38,0.30,0.22,0.15,0.08,0.00,-0.07,-0.13,-0.18,-0.22,-0.24,-0.26,-0.27,-0.27,-0.28,-0.28,-0.30,-0.31,-0.34,-0.37,-0.40,-0.45,-0.51,-0.56,-0.61,-0.65,-0.68,-0.69,-0.68,-0.66,-0.60,-0.51,-0.40,-0.27,-0.12,0.02,0.13,0.21,0.25,0.28,0.39,0.52,0.58,0.58,0.60,0.59,0.56,0.52,0.45,0.38,0.31,0.24,0.18,0.12,0.07,0.03,-0.00,-0.03,-0.05,-0.07,-0.08,-0.09,-0.09,-0.09,-0.09,-0.09,-0.09,-0.08,-0.08,-0.07,-0.05,-0.03,-0.01,0.01,0.02,0.03,0.03,0.02,0.01,0.01,0.01,0.02]};
 function makeCR(y){ const N=y.length,h=100/N;
   return x=>{ x=((x%100)+100)%100; const i=Math.floor(x/h)%N,t=(x-i*h)/h,t2=t*t,t3=t2*t;
     const y0=y[(i-1+N)%N],y1=y[i],y2=y[(i+1)%N],y3=y[(i+2)%N],m1=(y2-y0)/2,m2=(y3-y1)/2;
@@ -276,85 +282,95 @@ function makePchip(pts){
   return x=>{ x=((x%100)+100)%100; let i=0; while(!(P[i][0]<=x&&x<P[i+1][0])) i++;
     const t=(x-P[i][0])/h[i],t2=t*t,t3=t2*t;
     return (2*t3-3*t2+1)*P[i][1]+(t3-2*t2+t)*h[i]*m[i]+(-2*t3+3*t2)*P[i+1][1]+(t3-t2)*h[i]*m[i+1]; }; }
-/* Momento de rodilla: forma esquemática según Winter (2009); positivo extensor. */
-const KNEE_MOM=[[0,-0.1],[4,0.15],[12,0.6],[20,0.3],[27,0],[36,-0.2],[44,0],[52,0.1],[56,0.12],[62,0.02],[75,-0.02],[86,-0.1],[93,-0.28],[98,-0.15]];
 const F={}; for(const k in NODES) F[k]=makeCR(NODES[k]);
-F.mAnkle=makeLin(MOM_ANKLE); F.mHip=makeLin(MOM_HIP); F.mKnee=makePchip(KNEE_MOM);
+F.mAnkle=makeLin(MOM_ANKLE); F.mHip=makeLin(MOM_HIP); F.mKnee=makeLin(MOM_KNEE);
 /* Potencia = momento interno × velocidad angular en el sentido del momento.
    Tobillo: momento plantiflexor × velocidad de flexión plantar (−dθ/dt, con dorsiflexión positiva).
    Rodilla y cadera: momento extensor × velocidad de extensión (−dθ/dt, con flexión positiva). */
-const T=1.1, D2R=Math.PI/180;
+const T=0.99, D2R=Math.PI/180;
 const omega=k=>x=>-(F[k](x+0.05)-F[k](x-0.05))/0.1*(100/T)*D2R;   // rad/s
 const W={ankle:omega('ankle'),knee:omega('knee'),hip:omega('hip')};
-F.pAnkle=x=>F.mAnkle(x)*W.ankle(x); F.pKnee=x=>F.mKnee(x)*W.knee(x); F.pHip=x=>F.mHip(x)*W.hip(x);
+/* Potencia: la del laboratorio (dinámica inversa del mismo sujeto). M×ω de la figura se conserva como comprobación. */
+F.pAnkle=makeLin(POW_LAB.ankle); F.pKnee=makeLin(POW_LAB.knee); F.pHip=makeLin(POW_LAB.hip);
+const pMW={ankle:x=>F.mAnkle(x)*W.ankle(x),knee:x=>F.mKnee(x)*W.knee(x),hip:x=>F.mHip(x)*W.hip(x)};
 
 /* ---------- modelo geométrico ---------- */
 const rad=d=>d*D2R;
-function leg(x,u){
+const FL=0.161, FH=0.041, HEELF=0.19, MTPF=0.55, TOEF=0.26;   // pie: longitud, altura del tobillo; talón, cabezas de los metatarsianos y dedos en fracciones de FL
+const FF=10, HR=37, TO=60;
+function legBase(x,u){
   const tilt=F.pelvis(x), th=rad(F.hip(x)-tilt), ts=th-rad(F.knee(x)), ps=ts+rad(F.ankle(x));
-  const Lt=u*0.26,Ls=u*0.26,Lf=u*0.13;
+  const Lt=u*0.26,Ls=u*0.26,Lf=u*FL,h=u*FH;
   const K={x:Math.sin(th)*Lt,y:Math.cos(th)*Lt};
   const A={x:K.x+Math.sin(ts)*Ls,y:K.y+Math.cos(ts)*Ls};
   const f={x:Math.cos(ps),y:-Math.sin(ps)}, n={x:Math.sin(ps),y:Math.cos(ps)};
-  const heel={x:A.x-0.24*Lf*f.x+0.32*Lf*n.x,y:A.y-0.24*Lf*f.y+0.32*Lf*n.y};
-  const toe={x:A.x+0.80*Lf*f.x+0.32*Lf*n.x,y:A.y+0.80*Lf*f.y+0.32*Lf*n.y};
-  return {th,ts,ps,K,A,heel,toe,f,Lt,Ls,Lf}; }
-const FF=10, HR=30;
-const TOEW=1.04*0.13;
-const STEP=TOEW-leg(50,1).toe.x+leg(0,1).heel.x;
-function gR(x){const L=leg(x,1);return x<HR? -L.heel.x : TOEW-L.toe.x;}
+  const heel={x:A.x-HEELF*Lf*f.x+h*n.x,y:A.y-HEELF*Lf*f.y+h*n.y};
+  const mtp={x:A.x+MTPF*Lf*f.x+h*n.x,y:A.y+MTPF*Lf*f.y+h*n.y};
+  return {th,ts,ps,K,A,heel,mtp,f,Lt,Ls,Lf}; }
+const sm=t=>{t=Math.min(1,Math.max(0,t));return 3*t*t-2*t*t*t;};
+const MU_TO=Math.max(0,-legBase(TO,1).ps/D2R), MU_SW=15;
+function muAt(x,ps){ x=((x%100)+100)%100; if(x>=HR&&x<=TO) return Math.max(0,-ps/D2R);
+  if(x<HR) return 0; return (MU_TO+(MU_SW-MU_TO)*sm((x-TO)/12))*(1-sm((x-80)/17)); }
+function leg(x,u){ const L=legBase(x,u), mu=muAt(x,L.ps), pt=L.ps+rad(mu);
+  L.mu=mu; L.toe={x:L.mtp.x+TOEF*L.Lf*Math.cos(pt),y:L.mtp.y-TOEF*L.Lf*Math.sin(pt)}; return L; }
+
+const MTPW=(HEELF+MTPF)*FL;
+const STEP=MTPW-leg(50,1).mtp.x+leg(0,1).heel.x;
+function gR(x){const L=leg(x,1);return x<HR? -L.heel.x : MTPW-L.mtp.x;}
 function hipW(x){return x<50? gR(x) : STEP+gR(x-50);}
-function contactY(L){return Math.max(L.heel.y,L.toe.y);}
+function contactY(L){return Math.max(L.heel.y,L.mtp.y,L.toe.y);}
 
 /* ---------- fuerza de reacción del piso (esquemática) ---------- */
-const GRF_V_PTS=[[0,0],[3,0.55],[6,0.9],[12,1.12],[20,0.93],[30,0.78],[40,0.94],[48,1.1],[53,0.88],[57,0.38],[60,0],[80,0]];
-const GRF_AP_PTS=[[0,0],[3,-0.07],[11,-0.19],[20,-0.1],[29,0],[40,0.1],[50,0.2],[55,0.13],[60,0],[80,0]];
-function stanceOnly(f){return x=>{x=((x%100)+100)%100;return x<60?f(x):0;};}
-const gv0=stanceOnly(makePchip(GRF_V_PTS)), gap0=stanceOnly(makePchip(GRF_AP_PTS));
 const integ=(f,a,b)=>{let s=0;for(let x=a;x<b;x+=0.01)s+=f(x+0.005)*0.01;return s;};
-const kV=50/integ(gv0,0,60);
-const brake=-integ(x=>Math.min(0,gap0(x)),0,60), prop=integ(x=>Math.max(0,gap0(x)),0,60);
-F.grfV=x=>kV*gv0(x); F.grfAP=x=>{const v=gap0(x);return v>0?v*brake/prop:v;};
+F.grfV=makeLin(GRF_V); F.grfAP=makeLin(GRF_AP);
 F.grfVL=x=>F.grfV(x+50); F.grfAPL=x=>F.grfAP(x+50); F.grfVsum=x=>F.grfV(x)+F.grfV(x+50);
 /* centro de presión: en el talón mientras solo él toca el suelo; con el pie plano, donde lo exige el momento
    del tobillo de esta página (aproximación cuasiestática, limitado a la planta); en el antepié desde la elevación
    del talón. Transiciones lineales de 4 % para que no salte. KL: metros por unidad de figura. */
-const KL=1.6, GG=9.81;
-function copQS(L,x){const V=F.grfV(x),a=F.grfAP(x),cy=contactY(L),A=L.A;
+const KL=0.404/0.26, GG=9.81;   // metros por unidad de figura: muslo de 0,404 m (0,245 × 165 cm)
+function copQS(L,x,lo,hi){const V=F.grfV(x),a=F.grfAP(x),cy=contactY(L),A=L.A;
   const c=(F.mAnkle(x)/(GG*KL)+A.x*V-(cy-A.y)*a)/Math.max(V,0.05);
-  return Math.min(Math.max(c,Math.min(L.heel.x,L.toe.x)),Math.max(L.heel.x,L.toe.x));}
+  return Math.min(Math.max(c,Math.min(lo,hi)),Math.max(lo,hi));}
 function copOf(L,x){x=((x%100)+100)%100; const y=contactY(L);
-  if(x<FF) return {x:L.heel.x,y}; if(x>=HR) return {x:L.toe.x,y};
-  let c=copQS(L,x);
+  if(x<FF) return {x:L.heel.x,y};
+  if(x>=HR) return {x:copQS(L,x,L.mtp.x,L.toe.x),y};
+  let c=copQS(L,x,L.heel.x,L.mtp.x);
   if(x<FF+4){const t=(x-FF)/4;c=L.heel.x*(1-t)+c*t;}
-  if(x>HR-4){const t=(HR-x)/4;c=L.toe.x*(1-t)+c*t;}
   return {x:c,y};}
+
 
 
 /* ---------- autocomprobación del contacto (u/1000) y de la potencia ---------- */
 const QA=(function(){ let ds=0,pen=0,flat=0,clr=1e9,Dmin=1e9,Dmax=-1e9;
   for(let x=0;x<100;x+=0.1){ const R=leg(x,1000),L=leg(x+50,1000), g=x<50?contactY(R):contactY(L);
     for(const p of [R.heel,R.toe,L.heel,L.toe]) pen=Math.max(pen,p.y-g);
-    if(x<=10){ ds=Math.max(ds,Math.abs(R.heel.y-L.toe.y)); const D=R.heel.x-L.toe.x; Dmin=Math.min(Dmin,D); Dmax=Math.max(Dmax,D); }
-    if(x>=FF&&x<=HR) flat=Math.max(flat,Math.abs(R.heel.y-R.toe.y));
-    if(x>=14&&x<=46) clr=Math.min(clr,g-L.heel.y,g-L.toe.y); }
+    for(const p of [R.mtp,L.mtp]) pen=Math.max(pen,p.y-g);
+    if(x<=TO-50){ ds=Math.max(ds,Math.abs(R.heel.y-L.mtp.y)); const D=R.heel.x-L.mtp.x; Dmin=Math.min(Dmin,D); Dmax=Math.max(Dmax,D); }
+    if(x>=FF&&x<=HR) flat=Math.max(flat,Math.abs(R.heel.y-R.mtp.y));
+    if(x>=TO-50+4&&x<=46) clr=Math.min(clr,g-L.heel.y,g-L.mtp.y,g-L.toe.y); }
   let adj=80; for(let x=95;x>60;x-=0.1){ if(leg(x,1).A.x>leg(x+50,1).A.x)adj=x; }
-  let pz=0; for(let x=0;x<100;x+=0.1) for(const k of ['ankle','knee','hip']){ if(Math.abs(W[k](x))<1e-3){const p=Math.abs(F['p'+k[0].toUpperCase()+k.slice(1)](x)); if(p>pz)pz=p;} }
+  let tv=87; for(let x=70;x<100;x+=0.1){ if(leg(x,1).ts>=0){tv=x;break;} }
+  let pz=0; for(let x=0;x<100;x+=0.1){ const d=Math.abs(pMW.ankle(x)-F.pAnkle(x)); if(x>40&&x<60&&d>pz)pz=d; }
   let gok=0,gn=0; for(let x=1;x<59;x+=0.5){ const L=leg(x,1),c=copOf(L,x),r=F.grfAP(x)/F.grfV(x);
     const vk=(c.x+r*(c.y-L.K.y))-L.K.x, va=(c.x+r*(c.y-L.A.y))-L.A.x, mk=F.mKnee(x), ma=F.mAnkle(x);
     if(Math.abs(mk)>0.08){gn++; if((vk<0)===(mk>0))gok++;} if(Math.abs(ma)>0.08){gn++; if((va>0)===(ma>0))gok++;} }
-  return {ds,pen,flat,slip:Dmax-Dmin,clr,adj,pz,grf:100*gok/gn,vMean:integ(F.grfVsum,0,100)/100}; })();
+  return {ds,pen,flat,slip:Dmax-Dmin,clr,adj,tv,pz,grf:100*gok/gn,vMean:integ(F.grfVsum,0,100)/100}; })();
 document.getElementById('qaGrf').textContent=fmt(QA.grf);
 document.getElementById('adjPct').textContent=fmt(QA.adj);
-document.getElementById('qa').textContent=`Revisión del contacto (u/1000; tolerancia 1): doble apoyo, diferencia de altura ${fmt(QA.ds,2)} · deslizamiento ${fmt(QA.slip,2)} · pie plano, desnivel ${fmt(QA.flat,2)} · penetración ${fmt(QA.pen,2)} · despeje mínimo ${fmt(QA.clr,1)}. Potencia con velocidad angular nula: ${fmt(QA.pz,3)} W/kg. FRP: vertical media ${fmt(QA.vMean,3)} × peso; flecha coherente con el momento en rodilla y tobillo ${fmt(QA.grf)} %.`;
+document.getElementById('tvPct').textContent=fmt(QA.tv);
+document.getElementById('muTO').textContent=fmt(MU_TO);
+document.getElementById('labA2').textContent=fmt(Math.max(...POW_LAB.ankle),1);
+{let mx=0;for(let x=40;x<62;x+=0.1)mx=Math.max(mx,pMW.ankle(x));document.getElementById('mwA2').textContent=fmt(mx,1);}
+document.getElementById('qa').textContent=`Revisión del contacto (u/1000; tolerancia 1): doble apoyo, diferencia de altura ${fmt(QA.ds,2)} · deslizamiento ${fmt(QA.slip,2)} · pie plano, desnivel ${fmt(QA.flat,2)} · penetración ${fmt(QA.pen,2)} · despeje mínimo ${fmt(QA.clr,1)}. Tobillo en el despegue: |M×ω de la figura − potencia del laboratorio| máx ${fmt(QA.pz,2)} W/kg. FRP: vertical media ${fmt(QA.vMean,3)} × peso; flecha coherente con el momento en rodilla y tobillo ${fmt(QA.grf)} %.`;
 
 /* ---------- eventos y fases (Perry 1992, caps. 1–2) ---------- */
 const EV=[
-  {p:0,k:'CI',n:'Contacto inicial'},{p:10,k:'DC',n:'Despegue contralateral (y contacto del antepié)'},{p:30,k:'ET',n:'Elevación del talón'},
+  {p:0,k:'CI',n:'Contacto inicial'},{p:10,k:'DC',n:'Despegue contralateral (y contacto del antepié)'},{p:HR,k:'ET',n:'Elevación del talón'},
   {p:50,k:'CC',n:'Contacto contralateral'},{p:60,k:'D',n:'Despegue'},
   {p:73,k:'73',n:'Fin del balanceo inicial (límite convencional de Perry)',conv:1},
-  {p:Math.round(QA.adj*2)/2,k:'TA',n:'Tobillos adyacentes (en este modelo)'},
-  {p:87,k:'TV',n:'Tibia vertical'},{p:100,k:'CI',n:'Contacto inicial siguiente'}
+  {p:Math.round(QA.adj*2)/2,k:'TA',n:'Tobillos adyacentes (en este sujeto)'},
+  {p:87,k:'87',n:'Fin del balanceo medio (límite convencional de Perry: tibia vertical)',conv:1},
+  {p:Math.round(QA.tv*2)/2,k:'TV',n:'Tibia vertical (en este sujeto)'},{p:100,k:'CI',n:'Contacto inicial siguiente'}
 ];
 const PCI={a:0,b:2,k:'CI',n:'Contacto inicial',
   obj:'Colocar el miembro para iniciar el apoyo con la mecedora del talón.',
@@ -369,17 +385,17 @@ const PH=[
    mec:'El tibialis anterior frena el descenso del antepié; los vastos frenan la flexión de la rodilla; el gluteus maximus estabiliza la cadera y el tronco. En la rodilla hay absorción neta de potencia. La fuerza de reacción del piso pasa por detrás de la rodilla y del tobillo.',
    q:'¿Por qué hay absorción de potencia mientras la rodilla se flexiona?',
    ans:'Porque el momento interno es extensor y el movimiento es de flexión: el producto del momento por la velocidad angular es negativo. Los vastos frenan la flexión en lugar de producirla.'},
-  {a:10,b:30,k:'AM',n:'Apoyo medio',
+  {a:10,b:37,k:'AM',n:'Apoyo medio',
    obj:'Avanzar el cuerpo sobre el pie apoyado manteniendo estable el miembro y el tronco.',
    mov:'La tibia avanza sobre el pie estacionario (mecedora del tobillo) mientras la rodilla y la cadera se extienden.',
    mec:'El soleus y el gastrocnemius regulan el avance de la tibia y contribuyen al soporte del cuerpo (Neptune et al., 2001).',
    q:'¿Qué controla la velocidad con que avanza la tibia?',
    ans:'El momento plantiflexor del soleus y del gastrocnemius. Sin él, la tibia avanzaría demasiado rápido y la rodilla se flexionaría.'},
-  {a:30,b:50,k:'AT',n:'Apoyo terminal',
+  {a:37,b:50,k:'AT',n:'Apoyo terminal',
    obj:'Llevar el cuerpo por delante del pie de apoyo.',
    mov:()=>`El talón se eleva y el miembro avanza sobre el antepié. El tobillo alcanza su dorsiflexión máxima hacia el ${fmt(EXT.ankleMax.x)} %, la rodilla su menor flexión del apoyo y la cadera su extensión máxima al final de la fase.`,
-   mec:'El complejo plantiflexor contribuye al soporte y a la progresión. El momento plantiflexor alcanza su máximo mientras el tobillo todavía se dorsiflexiona: en el tobillo predomina la absorción.',
-   q:'¿Por qué el momento plantiflexor es máximo cuando el tobillo todavía se dorsiflexiona?',
+   mec:'El complejo plantiflexor contribuye al soporte y a la progresión. El momento plantiflexor crece mientras el tobillo todavía se dorsiflexiona, y en el tobillo predomina la absorción hasta poco antes del contacto contralateral. El pie gira sobre las cabezas de los metatarsianos y los dedos se extienden.',
+   q:'¿Por qué el momento plantiflexor es tan grande cuando el tobillo todavía se dorsiflexiona?',
    ans:'Porque el peso del cuerpo ya está por delante del antepié. El momento frena la dorsiflexión; parte de la energía se almacena en el tendón y se devuelve en el despegue (Honert y Zelik, 2016).'},
   {a:50,b:60,k:'PB',n:'Prebalanceo',
    obj:'Transferir el peso al otro miembro y preparar el balanceo.',
@@ -395,13 +411,13 @@ const PH=[
    ans:'Sobre todo la flexión de la rodilla, junto con la de la cadera. El tobillo todavía no llega a neutro.'},
   {a:73,b:87,k:'BM',n:'Balanceo medio',
    obj:'Seguir avanzando el miembro con el pie despejado.',
-   mov:'La cadera continúa su flexión, la rodilla se extiende y el tobillo llega a neutro. La tibia queda vertical al 87 %.',
+   mov:()=>`La cadera continúa su flexión, la rodilla se extiende y el tobillo pasa de la flexión plantar a una ligera dorsiflexión. Perry cierra la fase al 87 %, con la tibia vertical; en este sujeto la tibia llega a la vertical hacia el ${fmt(QA.tv)} %.`,
    mec:'La rodilla se extiende por la dinámica del miembro, incluida la gravedad y las interacciones entre segmentos; el tibialis anterior sostiene el pie cerca de neutro.',
    q:'¿Por qué la rodilla se extiende sin actividad de los vastos?',
    ans:'Por la dinámica del miembro: el muslo, que avanza, arrastra la pierna, y la gravedad contribuye. Los vastos se activan después, al final del balanceo.'},
   {a:87,b:100,k:'BT',n:'Balanceo terminal',
    obj:'Completar el avance y preparar el miembro para el apoyo.',
-   mov:'La rodilla termina de extenderse; la cadera mantiene su flexión y el tobillo, el neutro.',
+   mov:'La rodilla termina de extenderse; la cadera mantiene su flexión y el tobillo queda cerca de neutro.',
    mec:'Los isquiotibiales frenan la extensión de la rodilla y el avance del muslo: en la rodilla hay absorción neta. Los vastos y el tibialis anterior se activan para el contacto. Sin fuerza de reacción del piso, este momento solo acelera y frena el miembro: desaparecería si se ignorara su inercia (Vaughan et al., 1999).',
    q:'¿Por qué la rodilla absorbe potencia al final del balanceo?',
    ans:'Porque los isquiotibiales producen un momento flexor mientras la rodilla se extiende; frenan la pierna antes del contacto.'}
@@ -452,7 +468,7 @@ function draw(x){
   cx.lineWidth=1;cx.beginPath();
   const k0=Math.floor((hw-hx)/sp)-1;
   for(let k=k0;k<k0+Wd/sp+3;k++){const gx=hx+k*sp-hw;cx.moveTo(gx,gy+2);cx.lineTo(gx-8,gy+12);} cx.stroke();
-  const fl=1.04*0.13*u, s0=Math.floor((hw-hx)/(STEP*u))-2;
+  const fl=FL*u, s0=Math.floor((hw-hx)/(STEP*u))-2;
   for(let k=s0;k<s0+Wd/(STEP*u)+4;k++){cx.globalAlpha=.35;cx.fillStyle=(((k%2)+2)%2)?cL:cR;cx.fillRect(hx+k*STEP*u-hw,gy+3,fl,3);cx.globalAlpha=1;}
   const tilt=F.pelvis(x), pc={x:hx,y:hy-u*0.035};
   const sh={x:pc.x+Math.sin(rad(4))*u*0.30,y:pc.y-u*0.30};
@@ -488,7 +504,7 @@ function drawGRF(L,xx,P,u,col,al,w){ const V=F.grfV(xx); if(V<0.02) return;
   cx.globalAlpha=al;cx.fillStyle=col;cx.beginPath();cx.arc(c.x,c.y,3.5,0,7);cx.fill();cx.globalAlpha=1;
   arrow(c,tip,col,w,al); }
 function drawMoments(L,P,x,u){ const js=[[P(0,{x:0,y:0}),F.mHip(x)],[P(0,L.K),F.mKnee(x)],[P(0,L.A),F.mAnkle(x)]], col=css('--mom');
-  for(const [j,m] of js){ const r=Math.abs(m)*0.075*u; if(r<u*0.006) continue;
+  for(const [j,m] of js){ const r=Math.abs(m)*0.055*u; if(r<u*0.005) continue;
     cx.strokeStyle=col;cx.fillStyle=col;cx.lineWidth=2;cx.beginPath();cx.arc(j.x,j.y,r,0,7);
     if(m>0){cx.globalAlpha=.55;cx.fill();cx.globalAlpha=1;} else cx.stroke(); } }
 function drawLegend(u){ const y0=dbgC.checked?76:18, col=css('--muted'); cx.font='11px '+css('--f-data');cx.textAlign='left';cx.fillStyle=col;
@@ -510,7 +526,8 @@ function drawLeg(L,P,col,x,u,al){
   const hip=P(0,{x:0,y:0}),K=P(0,L.K),A=P(0,L.A),he=P(0,L.heel),to=P(0,L.toe);
   cx.globalAlpha=al;cx.strokeStyle=col;cx.lineCap='round';cx.lineJoin='round';cx.lineWidth=u*0.03;
   cx.beginPath();cx.moveTo(hip.x,hip.y);cx.lineTo(K.x,K.y);cx.lineTo(A.x,A.y);cx.stroke();
-  cx.lineWidth=u*0.022;cx.beginPath();cx.moveTo(A.x,A.y);cx.lineTo(he.x,he.y);cx.lineTo(to.x,to.y);cx.closePath();cx.stroke();
+  const mt=P(0,L.mtp);cx.lineWidth=u*0.022;cx.beginPath();cx.moveTo(A.x,A.y);cx.lineTo(he.x,he.y);cx.lineTo(mt.x,mt.y);cx.closePath();cx.stroke();
+  cx.lineWidth=u*0.016;cx.beginPath();cx.moveTo(mt.x,mt.y);cx.lineTo(to.x,to.y);cx.stroke();
   cx.globalAlpha=1;
   if(x!==null){ drawMuscles(L,P,x,u); cx.fillStyle=css('--surface');for(const j of [hip,K,A]){cx.beginPath();cx.arc(j.x,j.y,u*0.011,0,7);cx.fill();}}
 }
@@ -592,9 +609,9 @@ ups.push(x=>bUps[joint](x));
 // cinética: momento y potencia por articulación, cada una con su escala
 const kin=document.getElementById('kinet');
 const KR=[
-  {n:'Tobillo',m:'mAnkle',p:'pAnkle',c:'--ankle',mm:[-0.5,1.6],mt:[0,0.5,1,1.5],pm:[-1,3],pt:[-1,0,1,2,3],mr:v=>fmt(v,2)+(v>=0?' plantiflexor':' dorsiflexor')},
-  {n:'Rodilla',m:'mKnee',p:'pKnee',c:'--knee',mm:[-0.4,0.8],mt:[-0.4,0,0.4,0.8],pm:[-1,0.6],pt:[-1,-0.5,0,0.5],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')},
-  {n:'Cadera',m:'mHip',p:'pHip',c:'--hip',mm:[-1.2,1.2],mt:[-1,-0.5,0,0.5,1],pm:[-1,1.5],pt:[-1,0,1],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')}
+  {n:'Tobillo',m:'mAnkle',p:'pAnkle',c:'--ankle',mm:[-0.5,2],mt:[0,0.5,1,1.5,2],pm:[-1.5,6.5],pt:[0,2,4,6],mr:v=>fmt(v,2)+(v>=0?' plantiflexor':' dorsiflexor')},
+  {n:'Rodilla',m:'mKnee',p:'pKnee',c:'--knee',mm:[-0.8,0.6],mt:[-0.6,-0.3,0,0.3],pm:[-1.2,1.2],pt:[-1,-0.5,0,0.5,1],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')},
+  {n:'Cadera',m:'mHip',p:'pHip',c:'--hip',mm:[-1.2,1.2],mt:[-1,-0.5,0,0.5,1],pm:[-1.5,1.5],pt:[-1,0,1],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')}
 ];
 for(const r of KR){ const row=document.createElement('div');row.className='kin-row';
   const lab=document.createElement('div');lab.className='rl';lab.textContent=r.n;row.appendChild(lab);
