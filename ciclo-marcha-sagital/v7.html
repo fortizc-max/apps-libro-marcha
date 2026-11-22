@@ -219,7 +219,7 @@ body:not(.pl-s) .pl-s-only, body:not(.pl-f) .pl-f-only, body:not(.pl-t) .pl-t-on
       </section>
       <section class="panel adv-only pl-f-only" id="froKinSec">
         <h2>Momento frontal y fuerza mediolateral</h2>
-        <p class="note">Momento externo, en Nm/kg: en la cadera, positivo es aductor (lo equilibran los abductores del mismo lado); en la rodilla, positivo es varo. Fuerza mediolateral, en múltiplos del peso: positivo, hacia medial; cada pie en su propio ciclo, superpuestos. <span class="ghostNote">Gris: las otras dos velocidades del mismo sujeto, punteada la menor y a trazos la mayor.</span></p>
+        <p class="note">Momento interno, en Nm/kg, como en el resto de la aplicación y en el libro: positivo es abductor en la cadera (lo generan los abductores del mismo lado) y en la rodilla (se opone al varo). Fuerza mediolateral, en múltiplos del peso: positivo, hacia medial; cada pie en su propio ciclo, superpuestos. <span class="ghostNote">Gris: las otras dos velocidades del mismo sujeto, punteada la menor y a trazos la mayor.</span></p>
         <div class="grid" id="froKin"></div>
       </section>
       <section class="panel adv-only pl-t-only" id="traSec">
@@ -672,7 +672,7 @@ function drawFront(x){
   label('vista posterior',12,20); label('← izquierdo',12,36,cL); label('derecho →',12,52,cR);
   labelR(`oblicuidad pélvica ${fmt(Math.abs(ob))}° · ${Math.abs(ob)<0.5?'nivelada':ob>0?'cae el lado izquierdo':'cae el lado derecho'}`,1,ink);
   if(grfC.checked) labelR('→ fuerza de reacción · a trazos, su línea de acción',2,muted);
-  if(momC.checked) labelR('● momento externo aductor · de la cadera derecha',grfC.checked?3:2,muted);
+  if(momC.checked) labelR('● momento interno abductor · de la cadera derecha',grfC.checked?3:2,muted);
 }
 function drawTop(x){
   cx.clearRect(0,0,Wd,H);
@@ -817,8 +817,8 @@ if(HAS3){
   for(const k of PLK.f) ups.push(plot(document.getElementById('froPlots'),JC[k]));
   for(const k of PLK.t) ups.push(plot(document.getElementById('traPlots'),JC[k]));
   const fk=document.getElementById('froKin');
-  ups.push(plot(fk,{title:'Momento externo de cadera',aria:'Momento frontal externo de la cadera derecha',min:-0.4,max:1.2,ticks:[0,0.5,1],dec:1,series:[{k:'mHipF',c:'--mom'}],read:x=>{const v=F.mHipF(x);return fmt(v,2)+(Math.abs(v)<0.03?'':v>0?' aductor':' abductor');}}));
-  ups.push(plot(fk,{title:'Momento externo de rodilla',aria:'Momento frontal externo de la rodilla derecha',min:-0.2,max:0.6,ticks:[0,0.2,0.4],dec:1,series:[{k:'mKneeF',c:'--mom'}],read:x=>{const v=F.mKneeF(x);return fmt(v,2)+(Math.abs(v)<0.03?'':v>0?' varo':' valgo');}}));
+  ups.push(plot(fk,{title:'Momento de cadera',aria:'Momento frontal interno de la cadera derecha',min:-0.4,max:1.2,ticks:[0,0.5,1],dec:1,series:[{k:'mHipF',c:'--mom'}],read:x=>{const v=F.mHipF(x);return fmt(v,2)+(Math.abs(v)<0.03?'':v>0?' abductor':' aductor');}}));
+  ups.push(plot(fk,{title:'Momento de rodilla',aria:'Momento frontal interno de la rodilla derecha',min:-0.2,max:0.6,ticks:[0,0.2,0.4],dec:1,series:[{k:'mKneeF',c:'--mom'}],read:x=>{const v=F.mKneeF(x);return fmt(v,2)+(Math.abs(v)<0.03?'':v>0?' abductor':' aductor');}}));
   ups.push(plot(fk,{title:'Mediolateral (× peso)',aria:'Fuerza de reacción mediolateral de cada pie',min:-0.05,max:0.1,ticks:[0,0.05,0.1],dec:2,noGhost:1,
     series:[{k:'gML',c:'--right',w:3.2},{k:'gMLL',c:'--left',sh:50,w:1.6}],read:x=>'D '+fmt(F.gML(x),2)+' · I '+fmt(F.gMLL((x+50)%100),2)}));
 }
@@ -924,9 +924,9 @@ const val=v=>typeof v==='function'?v():v;
 /* ---------- textos de los planos frontal y transverso, por fase (miembro derecho de referencia) ---------- */
 const PT={
  f:{CI:'Plano frontal. La pelvis está cerca de la horizontal. El pie derecho toca el suelo y el izquierdo todavía sostiene carga.',
-    RC:'Plano frontal. El peso pasa al miembro derecho y la pelvis desciende del lado izquierdo, que se queda sin apoyo; la cadera derecha se aduce. La fuerza de reacción pasa por dentro de la cadera y crea un momento externo aductor: el gluteus medius, el gluteus minimus y el tensor fasciae latae derechos frenan la caída con una contracción excéntrica.',
+    RC:'Plano frontal. El peso pasa al miembro derecho y la pelvis desciende del lado izquierdo, que se queda sin apoyo; la cadera derecha se aduce. La fuerza de reacción pasa por dentro de la cadera y el momento interno es abductor: el gluteus medius, el gluteus minimus y el tensor fasciae latae derechos frenan la caída con una contracción excéntrica.',
     AM:'Plano frontal. Apoyo simple sobre el derecho. La caída del lado izquierdo llega a su máximo al comienzo de la fase y la pelvis vuelve hacia la horizontal mientras el centro de masa se desplaza hacia el pie derecho. Los abductores derechos sostienen la pelvis. Si no pueden, el lado izquierdo cae más (signo de Trendelenburg) o el tronco se inclina sobre la cadera derecha y acorta el brazo de palanca del peso.',
-    AT:'Plano frontal. La pelvis pasa por la horizontal y empieza a descender del lado derecho. El momento externo aductor de la cadera derecha tiene su segundo pico.',
+    AT:'Plano frontal. La pelvis pasa por la horizontal y empieza a descender del lado derecho. El momento interno abductor de la cadera derecha tiene su segundo pico.',
     PB:'Plano frontal. El peso pasa al pie izquierdo. El lado derecho de la pelvis desciende y la cadera derecha pasa hacia la abducción.',
     BI:'Plano frontal. Con el izquierdo en apoyo simple, el lado derecho de la pelvis, ahora sin apoyo, llega a su máxima caída, que frenan los abductores izquierdos; la cadera derecha queda en ligera abducción.',
     BM:'Plano frontal. La pelvis vuelve hacia la horizontal y la cadera derecha regresa cerca de la posición neutra.',
