@@ -70,6 +70,10 @@ input[type=range]{flex:1;min-width:140px;accent-color:var(--ink)}
 #phName{font-family:var(--f-display);font-size:1.3rem;font-weight:650;margin:2px 0 2px}
 #evName{font-size:12.5px;font-weight:600;min-height:1.2em}
 #contra{font-size:13px;color:var(--muted);margin:2px 0 8px}
+#evName{min-height:1.45em}
+#grfTxt{min-height:2.9em}
+#infoPanel{overflow-anchor:none}
+body{overflow-y:scroll}
 dl.fx{display:grid;grid-template-columns:max-content 1fr;gap:4px 10px;margin:0 0 8px}
 dl.fx dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:3px}
 dl.fx dd{margin:0;max-width:64ch}
@@ -228,7 +232,7 @@ body.adv .basic-only{display:none!important}
             <li><b>Modelo:</b> plano, con muslo, pierna, pie y dedos; longitudes proporcionales a la estatura (Winter, 2009: muslo 0,245, pierna 0,246 y pie 0,152 de la talla; tronco, cuello, cabeza y brazos con las mismas proporciones). El pie gira sobre el talón hasta quedar plano, se apoya entero hasta la elevación del talón y después gira sobre las cabezas de los metatarsianos con los dedos planos en el suelo; los dedos llegan a unos <span id="muTO">58</span>° de dorsiflexión en el despegue y conservan una extensión ligera en el balanceo.</li>
             <li><b>Ángulos:</b> los del sujeto, con las correcciones mínimas para que el pie no se hunda ni flote: diferencia media menor de 1° en cada articulación y máxima de 2,5°. La pelvis es la onda doble del sujeto: como el modelo usa la misma pelvis para las dos piernas, se promediaron los dos medios ciclos y se conservaron solo los componentes de dos y cuatro ciclos por zancada (diferencia máxima con los datos, 0,8°).</li>
             <li><b>Fases y eventos:</b> nombres de Perry (1992), caps. 1–2; los límites que dependen de eventos se toman del sujeto: el otro pie despega hacia el <span id="dcPct"></span> %, el pie queda plano hacia el <span id="ffPct"></span> %, el talón se eleva hacia el <span id="hrPct"></span> % y el despegue ocurre hacia el <span class="toTxt">60</span> %. El contacto inicial (0–2 %) queda incluido en la respuesta a la carga.</li>
-            <li><b>Momentos y fuerza de reacción:</b> los del sujeto. En los datos del laboratorio, el export marca el contacto inicial cuando la carga del talón ya empezó (la fuerza vertical vale cerca de la mitad del peso en el 1 % del ciclo); los cuatro primeros puntos de la fuerza, los momentos y las potencias se reconstruyeron con una subida suave. La flecha parte del centro de presión: el talón mientras solo él toca el suelo, las cabezas de los metatarsianos o los dedos desde la elevación del talón y, con el pie plano, el punto que exige el momento del tobillo en una aproximación cuasiestática. La flecha pasa por el lado de la rodilla y del tobillo que corresponde al momento mostrado en el <span id="qaGrf">95</span> % de los instantes del apoyo.</li>
+            <li><b>Momentos y fuerza de reacción:</b> los del sujeto. En los datos del laboratorio, el export marca el contacto inicial cuando la carga del talón ya empezó (la fuerza vertical vale cerca de la mitad del peso en el 1 % del ciclo); los cuatro primeros puntos de la fuerza, los momentos y las potencias se reconstruyeron con una subida suave. La flecha parte del centro de presión: el talón mientras solo él toca el suelo; con el pie plano, el punto que exige el momento del tobillo en una aproximación cuasiestática, y las cabezas de los metatarsianos y los dedos desde la elevación del talón. La trayectoria se suaviza y solo avanza, del talón hacia los dedos, sin saltos entre un cuadro y el siguiente. La flecha pasa por el lado de la rodilla y del tobillo que corresponde al momento mostrado en el <span id="qaGrf">95</span> % de los instantes del apoyo.</li>
             <li><b>Potencia:</b> <span id="powSrc"></span> Como comprobación, el producto del momento por la velocidad angular de la figura da un pico del tobillo en el despegue de <span id="mwA2"></span> W/kg, frente a <span id="labA2"></span> W/kg en los datos. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale al acortamiento de los fascículos (Honert y Zelik, 2016).</li>
             <li><b>Momentos sobre la figura:</b> círculos en la cadera, la rodilla y el tobillo del miembro derecho, con radio proporcional al momento interno y la misma escala para las tres articulaciones; relleno, extensor (cadera y rodilla) o plantiflexor (tobillo); hueco, flexor o dorsiflexor (Vaughan et al., 1999, apéndice A). En el balanceo no hay fuerza de reacción: los momentos que quedan aceleran y frenan el miembro, y desaparecerían si se ignorara su inercia (Vaughan et al., 1999).</li>
             <li><b>Activación muscular:</b> ventanas de temporalidad según Perry (1992), caps. 4–6; no proceden del sujeto. La función de los plantiflexores sigue a Neptune et al. (2001) y Francis et al. (2013).</li>
@@ -237,7 +241,7 @@ body.adv .basic-only{display:none!important}
           </ul>
 
           <p><b>Referencias.</b> Perry J. <i>Gait Analysis: Normal and Pathological Function</i>. Thorofare: SLACK; 1992. · Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4.ª ed. Hoboken: Wiley; 2009. · Neptune RR, Kautz SA, Zajac FE. Contributions of the individual ankle plantar flexors to support, forward progression and swing initiation during walking. <i>J Biomech</i>. 2001;34(11):1387–98. · Francis CA, Lenz AL, Lenhart RL, Thelen DG. The modulation of forward propulsion, vertical support, and center of pressure by the plantarflexors during human walking. <i>Gait Posture</i>. 2013;38(4):993–7. doi:10.1016/j.gaitpost.2013.05.009 · Honert EC, Zelik KE. Inferring muscle-tendon unit power from ankle joint power during the push-off phase of human walking: insights from a multiarticular EMG-driven model. <i>PLoS One</i>. 2016;11(10):e0163169. doi:10.1371/journal.pone.0163169 · Fukuchi CA, Fukuchi RK, Duarte M. A public dataset of overground and treadmill walking kinematics and kinetics in healthy individuals. <i>PeerJ</i>. 2018;6:e4640. doi:10.7717/peerj.4640 · Vaughan CL, Davis BL, O'Connor JC. <i>Dynamics of Human Gait</i>. 2.ª ed. Ciudad del Cabo: Kiboho Publishers; 1999.</p>
-          <p>Versión 6.0 · 21-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
+          <p>Versión 6.1 · 22-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
         </details>
       </section>
     </div>
@@ -362,12 +366,21 @@ const KL=0.245*CUR.H/100/0.26, GG=9.81;   // metros por unidad de figura: muslo 
 function copQS(L,x,lo,hi){const V=F.grfV(x),a=F.grfAP(x),cy=contactY(L),A=L.A;
   const c=(F.mAnkle(x)/(GG*KL)+A.x*V-(cy-A.y)*a)/Math.max(V,0.05);
   return Math.min(Math.max(c,Math.min(lo,hi)),Math.max(lo,hi));}
-function copOf(L,x){x=((x%100)+100)%100; const y=contactY(L);
-  if(x<FF) return {x:L.heel.x,y};
-  if(x>=HR) return {x:copQS(L,x,L.mtp.x,L.toe.x),y};
-  let c=copQS(L,x,L.heel.x,L.mtp.x);
-  if(x<FF+4){const t=(x-FF)/4;c=L.heel.x*(1-t)+c*t;}
-  return {x:c,y};}
+/* trayectoria del centro de presión, precalculada como fracción de la planta (talón 0, punta 1): parte del
+   valor cuasiestático, nunca retrocede, llega a las cabezas de los metatarsianos en la elevación del talón y se
+   suaviza; así la flecha avanza de forma continua del talón a los dedos. */
+const COPS=(function(){ const a=[]; let m=0;
+  for(let i=0;i<=200;i++){ const x=i/2, L=leg(x,1), h=L.heel.x, t=L.toe.x, mt=L.mtp.x;
+    if(x<FF){a.push(0);continue;}
+    let c=copQS(L,x,x<HR?h:mt,t);
+    c=Math.max(c, x<HR? h+(mt-h)*Math.min(1,(x-FF)/Math.max(HR-FF,1)) : mt);
+    let sv=(c-h)/(t-h); if(F.grfV(x)<0.15||x>TO) sv=m;
+    m=Math.max(m,sv); a.push(m); }
+  for(let k=0;k<3;k++){ const b=a.slice(); for(let i=2;i<=198;i++) a[i]=(b[i-2]+b[i-1]+b[i]+b[i+1]+b[i+2])/5; }
+  return a; })();
+function copOf(L,x){x=((x%100)+100)%100; const y=contactY(L), f=x*2, i=Math.min(199,Math.floor(f)), r=f-i;
+  const sv=COPS[i]*(1-r)+COPS[i+1]*r;
+  return {x:L.heel.x+sv*(L.toe.x-L.heel.x),y};}
 
 
 
@@ -550,6 +563,7 @@ function draw(x){
 }
 const grfC=document.getElementById('grfC'), momC=document.getElementById('momC');
 function arrow(a,b,col,w,al){ const ang=Math.atan2(b.y-a.y,b.x-a.x),h=Math.max(7,w*3);
+  if(!arrow.halo){ arrow.halo=1; arrow(a,b,css('--surface'),w+3,al*0.9); arrow.halo=0; }
   cx.globalAlpha=al;cx.strokeStyle=col;cx.fillStyle=col;cx.lineWidth=w;cx.lineCap='round';
   cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x-Math.cos(ang)*h*.6,b.y-Math.sin(ang)*h*.6);cx.stroke();
   cx.beginPath();cx.moveTo(b.x,b.y);cx.lineTo(b.x-Math.cos(ang-0.4)*h,b.y-Math.sin(ang-0.4)*h);cx.lineTo(b.x-Math.cos(ang+0.4)*h,b.y-Math.sin(ang+0.4)*h);cx.closePath();cx.fill();cx.globalAlpha=1;}
@@ -781,6 +795,10 @@ function announce(x){const e=eventAt(x);
 /* ---------- reproducción ---------- */
 const playB=$('play'),speedS=$('speed'),scrub=$('scrub'),pctEl=$('pct'),loopC=$('loopPh');
 let x=0,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=null;
+/* alto fijo del panel de texto: se mide el máximo a lo largo del ciclo para que la página no cambie de alto en cada cuadro */
+function fixPanelH(){ const ip=document.getElementById('infoPanel'), x0=x; ip.style.minHeight=''; let mh=0;
+  for(let v=0;v<=100;v+=0.5){ panel(v); mh=Math.max(mh,ip.offsetHeight); }
+  ip.style.minHeight=mh+'px'; panel(x0); }
 function render(){draw(x);ups.forEach(f=>f(x));ecur.setAttribute('x1',EX(x));ecur.setAttribute('x2',EX(x));panel(x);
   scrub.value=x.toFixed(1);pctEl.textContent=fmt(x)+' %';$('mScrub').value=x.toFixed(1);$('mPct').textContent=fmt(x)+' %';}
 function loop(ts){ if(playing){ if(last!==null){ const dx=((ts-last)/1000)/(T/parseFloat(speedS.value))*100;
@@ -808,17 +826,17 @@ scrub.oninput=()=>{x=parseFloat(scrub.value);render();setPlaying(false);};
 $('mScrub').oninput=()=>{x=parseFloat($('mScrub').value);render();setPlaying(false);};
 dbgC.onchange=()=>{$('qa').hidden=!dbgC.checked;render();};
 for(const [c,k] of [[grfC,'cms-grf'],[momC,'cms-mom']]){ const v=store.get(k); if(v!==null) c.checked=v==='1'; c.onchange=()=>{store.set(k,c.checked?'1':'0');render();}; }
-addEventListener('resize',()=>{resize();render();});
+addEventListener('resize',()=>{resize();fixPanelH();render();});
 const fsB=$('fs');
 if(!document.fullscreenEnabled) fsB.hidden=true;
 fsB.onclick=()=>{ if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});} else document.documentElement.requestFullscreen().catch(()=>{fsB.hidden=true;}); };
-document.addEventListener('fullscreenchange',()=>{fsB.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';resize();render();});
+document.addEventListener('fullscreenchange',()=>{fsB.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';resize();fixPanelH();render();});
 if(window.matchMedia){matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',render);}
 new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 /* barra fija en el teléfono cuando la figura sale de la vista */
 if('IntersectionObserver' in window){ new IntersectionObserver(es=>{ $('mini').classList.toggle('show',!es[0].isIntersecting); }).observe(cv); }
 /* vista básica / avanzada */
-function setView(adv){document.body.classList.toggle('adv',adv);$('vBas').setAttribute('aria-pressed',!adv);$('vAdv').setAttribute('aria-pressed',adv);store.set('cms-view',adv?'adv':'bas');resize();render();}
+function setView(adv){document.body.classList.toggle('adv',adv);$('vBas').setAttribute('aria-pressed',!adv);$('vAdv').setAttribute('aria-pressed',adv);store.set('cms-view',adv?'adv':'bas');resize();fixPanelH();render();}
 $('vBas').onclick=()=>setView(false); $('vAdv').onclick=()=>setView(true);
 /* acceso de prueba: ?x=53&dbg=1&v=adv abre en pausa en ese porcentaje */
 const qs=new URLSearchParams(location.search);
@@ -827,7 +845,8 @@ if(qs.get('dbg')==='1'){dbgC.checked=true;$('qa').hidden=false;}
 if(qs.get('mom')==='1') momC.checked=true;
 setJoint(joint);
 setView(qs.get('v')? qs.get('v')==='adv' : store.get('cms-view')==='adv');
-resize();render();requestAnimationFrame(loop);
+resize();fixPanelH();render();requestAnimationFrame(loop);
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{fixPanelH();render();});
 })();
 </script>
 </body>
