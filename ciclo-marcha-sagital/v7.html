@@ -1024,7 +1024,13 @@ function setPlane(pl){ if(!HAS3) pl='s'; plane=pl; store.set('cms-plane',pl);
   $('stage').setAttribute('aria-label',pl==='s'?'Figura que camina en el plano sagital':pl==='f'?'Figura vista desde atrás: pelvis, caderas y miembros inferiores en el plano frontal':'Figura vista desde arriba: rotación de la pelvis y progresión de los pies');
   $('momLbl').lastChild.textContent=pl==='f'?' Momento de la cadera derecha':' Momentos articulares';
   lastPh=''; setJoint(jointMem[pl]); resize(); fixPanelH(); render(); }
-[...$('plSel').children].forEach(b=>{ if(!HAS3&&b.dataset.p!=='s'){b.disabled=true;b.title='Disponible con los datos de la base pública (tres velocidades)';} b.onclick=()=>setPlane(b.dataset.p); });
+[...$('plSel').children].forEach(b=>{
+  if(!HAS3&&b.dataset.p!=='s'){
+    /* los datos del laboratorio son solo sagitales: el plano frontal o transverso abre la marcha cómoda de la base pública */
+    b.title='Abre la marcha cómoda (1,3 m/s) de la base pública, que tiene los tres planos';
+    b.onclick=()=>{ try{localStorage.setItem('cms-ds2','C');}catch(e){} store.set('cms-plane',b.dataset.p);
+      const q=new URLSearchParams(location.search); q.set('d','C'); q.set('p',b.dataset.p); location.search=q.toString(); };
+  } else b.onclick=()=>setPlane(b.dataset.p); });
 function setView(adv){document.body.classList.toggle('adv',adv);$('vBas').setAttribute('aria-pressed',!adv);$('vAdv').setAttribute('aria-pressed',adv);store.set('cms-view',adv?'adv':'bas');resize();fixPanelH();render();}
 $('vBas').onclick=()=>setView(false); $('vAdv').onclick=()=>setView(true);
 /* acceso de prueba: ?x=53&dbg=1&v=adv abre en pausa en ese porcentaje */
