@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ciclo de marcha sagital</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Versión 6 (21-11-2026): selector de datos (laboratorio o la misma persona a tres velocidades, base WBDS de Fukuchi et al., 2018)
+   y las otras velocidades en gris en las gráficas. Eventos (despegue, pie plano, elevación del talón) por conjunto de datos.
+   Versión 5 (21-11-2026): cinemática, fuerza de reacción y momentos de un adulto sano del laboratorio (CTR-005),
+   pie con articulación metatarsofalángica, segmentos con proporciones antropométricas.
+   Versión 4 (21-11-2026): fuerza de reacción del piso sobre la figura y en gráficas, momentos como círculos
+   en las articulaciones (idea de Vaughan et al., 1999, apéndice A), momentos de inercia en el balanceo.
+   Versión 3 (17-11-2026). Revisión externa del 17-11-2026 aplicada: potencia = momento × velocidad angular;
+   ángulos ajustados a las curvas normativas del libro; fases como controles; vista básica y avanzada.
+   Lados: azul = derecho (referencia), rojo = izquierdo. Activación: un solo tono, solo temporalidad. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#18231f; --muted:#5d6b66; --line:#d5ddd9; --stance:#e7eeeb;
+  --right:#1565C0; --left:#C62828; --act:#E65100; --cursor:#18231f; --focus:#1565C0; --warn:#8a5a00;
+  --pel:#546E7A; --hip:#00897B; --knee:#7a8a2e; --ankle:#6b4f9e; --mom:#455a64;
+  --f-display:"Literata", Georgia, "Times New Roman", serif;
+  --f-body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18211e; --ink:#e4ece8; --muted:#97a6a0; --line:#2c3833; --stance:#1d2925;
+  --right:#64a6f0; --left:#ef7070; --act:#ff8a3d; --cursor:#e4ece8; --focus:#64a6f0; --warn:#e0b050;
+  --pel:#9fb3bd; --hip:#4db6ac; --knee:#b8c75a; --ankle:#a98be0; --mom:#b0bec5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18211e; --ink:#e4ece8; --muted:#97a6a0; --line:#2c3833; --stance:#1d2925;
+  --right:#64a6f0; --left:#ef7070; --act:#ff8a3d; --cursor:#e4ece8; --focus:#64a6f0; --warn:#e0b050;
+  --pel:#9fb3bd; --hip:#4db6ac; --knee:#b8c75a; --ankle:#a98be0; --mom:#b0bec5; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1500px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 90px max(16px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 18px}
+header h1{font-family:var(--f-display);font-weight:650;font-size:clamp(1.35rem,2.6vw,1.8rem);margin:0;letter-spacing:-.01em}
+header p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.side-r{color:var(--right);font-weight:600} .side-l{color:var(--left);font-weight:600}
+.warn{font-size:13px;color:var(--warn);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--surface);padding:6px 14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:14px;align-items:start}
+.left{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;position:sticky;top:10px}
+.right{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media (max-width:980px){.cols{grid-template-columns:minmax(0,1fr)}.left{position:static}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+canvas{display:block;width:100%;height:auto;border-radius:6px;background:var(--surface)}
+button,select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:6px 11px;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.phases{display:grid;margin-top:8px;border-radius:5px;overflow:hidden;gap:1px;background:var(--line)}
+.phases button{border:0;border-radius:0;padding:6px 0;font-family:var(--f-data);font-size:11.5px;background:var(--stance);color:var(--ink);white-space:nowrap;overflow:hidden}
+.phases button.sw{background:var(--surface)}
+.phases button.on{background:var(--ink);color:var(--surface);font-weight:600}
+.events{position:relative;height:18px;font-family:var(--f-data);font-size:10px;color:var(--muted);margin-top:3px}
+.events span{position:absolute;top:2px;transform:translateX(-50%);white-space:nowrap}
+.events span::before{content:"";position:absolute;left:50%;top:-4px;height:4px;border-left:1px solid var(--muted)}
+.events span.conv{font-style:italic}
+.events span:first-child{transform:none} .events span:first-child::before{left:0}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+#play{min-width:100px;font-weight:600}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--ink)}
+.pct{font-family:var(--f-data);font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}
+.lbl{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+#phName{font-family:var(--f-display);font-size:1.3rem;font-weight:650;margin:2px 0 2px}
+#evName{font-size:12.5px;font-weight:600;min-height:1.2em}
+#contra{font-size:13px;color:var(--muted);margin:2px 0 8px}
+#evName{min-height:1.45em}
+#grfTxt{min-height:2.9em}
+#infoPanel{overflow-anchor:none}
+body{overflow-y:scroll}
+dl.fx{display:grid;grid-template-columns:max-content 1fr;gap:4px 10px;margin:0 0 8px}
+dl.fx dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:3px}
+dl.fx dd{margin:0;max-width:64ch}
+details.q{border-top:1px solid var(--line);padding-top:6px;margin-top:6px}
+details.q summary{cursor:pointer;font-weight:600;font-size:14px}
+details.q p{margin:4px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:8px;border:1px solid var(--line);border-left:5px solid var(--act);background:var(--surface);text-align:left}
+.chip[aria-pressed="true"]{outline:2px solid var(--act);outline-offset:1px}
+.chip.none{border-left-color:var(--line);color:var(--muted)}
+#musInfo{font-size:13.5px;margin:8px 0 0;min-height:1.3em}
+h2{font-family:var(--f-display);font-weight:650;font-size:1.1rem;margin:0 0 4px}
+.note{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+.jsel{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.jsel button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+@media (max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){dl.fx{grid-template-columns:minmax(0,1fr)}dl.fx dd{margin-bottom:4px}.phases button{font-size:10px}}
+.plot h3{margin:0 0 2px;font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.plot h3 span{font-family:var(--f-data);font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--f-data);font-size:9px;fill:var(--muted)}
+.kin-row{display:grid;grid-template-columns:110px repeat(2,minmax(0,1fr));gap:6px 16px;align-items:center;margin-bottom:6px}
+.kin-row .rl{font-weight:600;font-size:14px}
+@media (max-width:600px){.kin-row{grid-template-columns:1fr}}
+details.meth summary,details.tab summary{cursor:pointer;font-family:var(--f-display);font-weight:650;font-size:1.05rem}
+.tw{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted)}
+#qa{font-family:var(--f-data);font-size:11.5px;color:var(--muted);margin:6px 0 0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.meth p,.meth li{font-size:13px;color:var(--muted)} .meth ul{padding-left:18px;margin:4px 0}
+body:not(.adv) .adv-only{display:none!important}
+body.adv .basic-only{display:none!important}
+body:not(.pl-s) .pl-s-only, body:not(.pl-f) .pl-f-only, body:not(.pl-t) .pl-t-only{display:none!important}
+#plSel button:disabled{opacity:.45;cursor:not-allowed}
+#plTxt{margin:0 0 8px}
+/* barra fija en el teléfono: la figura y las gráficas quedan separadas al desplazarse */
+#mini{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:none;align-items:center;gap:8px}
+#mini .mph{font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34%}
+@media (max-width:980px){#mini.show{display:flex}}
+@media (min-width:981px){.wrap{padding-bottom:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="h1">Ciclo de marcha en el plano sagital</h1>
+      <p>Miembro <span class="side-r">derecho en azul</span> (referencia del ciclo) e <span class="side-l">izquierdo en rojo</span>. <span class="warn" id="srcTxt"></span></p>
+    </div>
+    <div class="seg" role="group" aria-label="Plano" id="plSel">
+      <button type="button" data-p="s" aria-pressed="true">Sagital</button>
+      <button type="button" data-p="f" aria-pressed="false">Frontal</button>
+      <button type="button" data-p="t" aria-pressed="false">Transverso</button>
+    </div>
+    <div class="seg" role="group" aria-label="Datos" id="dsSel"></div>
+    <div class="seg" role="group" aria-label="Vista">
+      <button type="button" id="vBas" aria-pressed="true">Vista básica</button>
+      <button type="button" id="vAdv" aria-pressed="false">Vista avanzada</button>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="left">
+      <div class="panel" id="stagePanel">
+        <canvas id="stage" width="720" height="440" role="img" aria-label="Figura que camina en el plano sagital; el miembro derecho, en azul, muestra la activación muscular esquemática"></canvas>
+        <div class="phases" id="phases" role="group" aria-label="Fases del ciclo: pulse una para detenerse en ella"></div>
+        <div class="events" id="events" aria-hidden="true"></div>
+        <div class="controls">
+          <button id="play" type="button">Pausar</button>
+          <button id="evPrev" type="button" aria-label="Evento anterior">◀ Evento</button>
+          <button id="evNext" type="button" aria-label="Evento siguiente">Evento ▶</button>
+          <button id="back" type="button" aria-label="Retroceder un cuadro">◀ 1 %</button>
+          <button id="fwd" type="button" aria-label="Avanzar un cuadro">1 % ▶</button>
+          <label class="chk"><input type="checkbox" id="loopPh"> Repetir esta fase</label>
+        </div>
+        <div class="controls">
+          <label class="chk"><input type="checkbox" id="grfC" checked> Fuerza de reacción del piso</label>
+          <label class="chk" id="momLbl"><input type="checkbox" id="momC"> Momentos articulares</label>
+        </div>
+        <div class="controls">
+          <input id="scrub" type="range" min="0" max="100" step="0.5" value="0" aria-label="Porcentaje del ciclo">
+          <span class="pct" id="pct">0 %</span>
+          <label class="lbl adv-only">Reproducción
+            <select id="speed">
+              <option value="0.25">0,25×</option>
+              <option value="0.5" selected>0,5×</option>
+              <option value="1" id="opt1x">1×</option>
+            </select></label>
+          <button id="fs" type="button" class="adv-only">Pantalla completa</button>
+          <label class="chk adv-only"><input type="checkbox" id="dbg"> Mostrar contactos</label>
+        </div>
+        <p id="qa" hidden></p>
+      </div>
+
+      <div class="panel" id="infoPanel" aria-live="off">
+        <div class="eyebrow" id="phRange"></div>
+        <div id="phName"></div>
+        <div id="evName"></div>
+        <div id="contra"></div>
+        <p class="note" id="plTxt" hidden></p>
+        <p class="note" id="grfTxt" style="margin-top:0"></p>
+        <dl class="fx">
+          <dt>Objetivo</dt><dd id="fxObj"></dd>
+          <dt>Movimiento</dt><dd id="fxMov"></dd>
+          <dt>Mecanismo</dt><dd id="fxMec"></dd>
+        </dl>
+        <details class="q" id="qBox"><summary id="qTxt"></summary><p id="qAns"></p></details>
+        <div class="eyebrow" style="margin:10px 0 6px">Grupos musculares activos en este instante · pulse uno para resaltarlo</div>
+        <div class="chips" id="chips"></div>
+        <p id="musInfo"></p>
+      </div>
+    </div>
+
+    <div class="right">
+      <section class="panel basic-only" id="basicSec">
+        <h2>Ángulo articular</h2>
+        <div class="jsel" id="jsel" role="group" aria-label="Articulación"></div>
+        <div id="basicPlot"></div>
+        <p class="note">Banda sombreada: apoyo (0–<span class="toTxt">60</span> %). Línea discontinua: despegue. <span id="bNote">Positivo: anteversión pélvica, flexión de cadera y de rodilla, dorsiflexión del tobillo.</span></p>
+      </section>
+
+      <section class="panel adv-only pl-s-only" id="kinSec">
+        <h2>Cinemática sagital</h2>
+        <p class="note">Banda sombreada: apoyo (0–<span class="toTxt">60</span> %). <span class="ghostNote">Gris: las otras dos velocidades del mismo sujeto, punteada la menor y a trazos la mayor.</span> Positivo: anteversión pélvica, flexión de cadera y de rodilla, dorsiflexión del tobillo.</p>
+        <div class="grid" id="plots"></div>
+      </section>
+
+      <section class="panel adv-only pl-s-only" id="kinetSec">
+        <h2>Momento y potencia articular netos</h2>
+        <p class="note">Momento interno, en Nm/kg: positivo, plantiflexor en el tobillo y extensor en rodilla y cadera. Potencia, en W/kg: positivo, generación neta; negativo, absorción neta. Momento y potencia del mismo sujeto (véase «Procedencia de las cifras»). <span class="ghostNote">Gris: las otras dos velocidades, punteada la menor y a trazos la mayor.</span> Cada articulación tiene su propia escala.</p>
+        <div id="kinet"></div>
+      </section>
+
+      <section class="panel adv-only pl-f-only" id="froSec">
+        <h2>Cinemática frontal</h2>
+        <p class="note">Banda sombreada: apoyo del pie derecho. <span class="ghostNote">Gris: las otras dos velocidades del mismo sujeto, punteada la menor y a trazos la mayor.</span> Oblicuidad pélvica: positivo, el lado derecho más alto que el izquierdo (en el apoyo derecho cae el lado izquierdo). Cadera: positivo, aducción.</p>
+        <div class="grid" id="froPlots"></div>
+      </section>
+      <section class="panel adv-only pl-f-only" id="froKinSec">
+        <h2>Momento frontal y fuerza mediolateral</h2>
+        <p class="note">Momento externo, en Nm/kg: en la cadera, positivo es aductor (lo equilibran los abductores del mismo lado); en la rodilla, positivo es varo. Fuerza mediolateral, en múltiplos del peso: positivo, hacia medial; cada pie en su propio ciclo, superpuestos. <span class="ghostNote">Gris: las otras dos velocidades del mismo sujeto, punteada la menor y a trazos la mayor.</span></p>
+        <div class="grid" id="froKin"></div>
+      </section>
+      <section class="panel adv-only pl-t-only" id="traSec">
+        <h2>Cinemática transversa</h2>
+        <p class="note">Banda sombreada: apoyo del pie derecho. <span class="ghostNote">Gris: las otras dos velocidades del mismo sujeto, punteada la menor y a trazos la mayor.</span> Pelvis: positivo, el lado derecho adelante. Cadera: positivo, rotación interna. Progresión del pie, ángulo del eje del pie con la línea de marcha: positivo, punta hacia afuera.</p>
+        <div class="grid" id="traPlots"></div>
+      </section>
+
+      <section class="panel adv-only pl-s-only" id="grfSec">
+        <h2>Fuerza de reacción del piso</h2>
+        <p class="note">En múltiplos del peso corporal. Cada pie en su propio ciclo, desde su contacto inicial, como en el informe del laboratorio: <span class="side-r">derecho</span> e <span class="side-l">izquierdo</span> medidos por separado y superpuestos (el derecho, más grueso, debajo); en una persona sana casi coinciden. Los puntos marcan dónde está cada pie en este instante: el izquierdo va medio ciclo adelantado. La banda sombreada es el apoyo; la suma de los dos pies supera el peso en el doble apoyo, cuando el centro de masa frena su descenso. Anteroposterior: negativo, frenado; positivo, propulsión. Datos medidos, sin reescalar.</p>
+        <div class="grid" id="grfPlots"></div>
+      </section>
+
+      <section class="panel adv-only" id="emgSec">
+        <h2>Temporalidad de la activación muscular</h2>
+        <p class="note">Las bandas indican solo cuándo se activa cada grupo (Perry, 1992); no representan amplitud EMG, fuerza ni permiten comparar músculos. Pulse un nombre para resaltarlo en la figura.</p>
+        <div style="overflow-x:auto"><svg id="emg" viewBox="0 0 470 240" role="img" aria-label="Línea de tiempo de la activación de ocho grupos musculares del miembro derecho"></svg></div>
+      </section>
+
+      <section class="panel adv-only pl-s-only" id="tabSec">
+        <details class="tab">
+          <summary>Tabla de eventos y valores</summary>
+          <p class="note">Valores leídos de las mismas funciones que dibujan la figura y las gráficas, redondeados: ángulos al grado, potencia a la décima de W/kg.</p>
+          <div class="tw"><table id="evTable"></table></div>
+          <div class="tw"><table id="exTable"></table></div>
+        </details>
+      </section>
+
+      <section class="panel">
+        <details class="meth">
+          <summary>Procedencia de las cifras y limitaciones</summary>
+          <ul>
+            <li><b>Origen de los datos:</b> se eligen arriba. «Laboratorio»: un adulto sano del laboratorio de marcha del Instituto Roosevelt (código CTR-005; 26 años, 165 cm), media de tres caminatas y de los dos lados, con cinemática, fuerza de reacción y momentos medidos en el laboratorio. «Lenta», «Cómoda» y «Rápida»: la misma persona a tres velocidades, tomada de la base pública de Fukuchi et al. (2018), licencia CC BY 4.0 (sujeto WBDS18: mujer de 28 años, 167,5 cm; 0,89, 1,30 y 1,64 m/s; zancada de 1,25, 1,03 y 0,93 s, medida con los marcadores del talón), media de los dos lados en cada velocidad. En esas tres, las otras dos velocidades se dibujan en gris en las gráficas. Es la marcha de una persona, no una curva de referencia: las bandas de normalidad están en el capítulo 1 del libro.</li>
+            <li><b>Modelo:</b> plano, con muslo, pierna, pie y dedos; longitudes proporcionales a la estatura (Winter, 2009: muslo 0,245, pierna 0,246 y pie 0,152 de la talla; tronco, cuello, cabeza y brazos con las mismas proporciones). El pie gira sobre el talón hasta quedar plano, se apoya entero hasta la elevación del talón y después gira sobre las cabezas de los metatarsianos con los dedos planos en el suelo; los dedos llegan a unos <span id="muTO">58</span>° de dorsiflexión en el despegue y conservan una extensión ligera en el balanceo.</li>
+            <li><b>Ángulos:</b> los del sujeto, con las correcciones mínimas para que el pie no se hunda ni flote: diferencia media menor de 1° en cada articulación y máxima de 2,5°. La pelvis es la onda doble del sujeto: como el modelo usa la misma pelvis para las dos piernas, se promediaron los dos medios ciclos y se conservaron solo los componentes de dos y cuatro ciclos por zancada (diferencia máxima con los datos, 0,8°).</li>
+            <li><b>Fases y eventos:</b> nombres de Perry (1992), caps. 1–2; los límites que dependen de eventos se toman del sujeto: el otro pie despega hacia el <span id="dcPct"></span> %, el pie queda plano hacia el <span id="ffPct"></span> %, el talón se eleva hacia el <span id="hrPct"></span> % y el despegue ocurre hacia el <span class="toTxt">60</span> %. El contacto inicial (0–2 %) queda incluido en la respuesta a la carga.</li>
+            <li><b>Momentos y fuerza de reacción:</b> los del sujeto. En los datos del laboratorio, el export marca el contacto inicial cuando la carga del talón ya empezó (la fuerza vertical vale cerca de la mitad del peso en el 1 % del ciclo); los cuatro primeros puntos de la fuerza, los momentos y las potencias se reconstruyeron con una subida suave. La flecha parte del centro de presión: el talón mientras solo él toca el suelo; con el pie plano, el punto que exige el momento del tobillo en una aproximación cuasiestática, y las cabezas de los metatarsianos y los dedos desde la elevación del talón. La trayectoria se suaviza y solo avanza, del talón hacia los dedos, sin saltos entre un cuadro y el siguiente. La flecha pasa por el lado de la rodilla y del tobillo que corresponde al momento mostrado en el <span id="qaGrf">95</span> % de los instantes del apoyo.</li>
+            <li><b>Potencia:</b> <span id="powSrc"></span> Como comprobación, el producto del momento por la velocidad angular de la figura da un pico del tobillo en el despegue de <span id="mwA2"></span> W/kg, frente a <span id="labA2"></span> W/kg en los datos. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale al acortamiento de los fascículos (Honert y Zelik, 2016).</li>
+            <li><b>Momentos sobre la figura:</b> círculos en la cadera, la rodilla y el tobillo del miembro derecho, con radio proporcional al momento interno y la misma escala para las tres articulaciones; relleno, extensor (cadera y rodilla) o plantiflexor (tobillo); hueco, flexor o dorsiflexor (Vaughan et al., 1999, apéndice A). En el balanceo no hay fuerza de reacción: los momentos que quedan aceleran y frenan el miembro, y desaparecerían si se ignorara su inercia (Vaughan et al., 1999).</li>
+            <li><b>Activación muscular:</b> ventanas de temporalidad según Perry (1992), caps. 4–6; no proceden del sujeto. La función de los plantiflexores sigue a Neptune et al. (2001) y Francis et al. (2013).</li>
+            <li><b>Límites del 73 y el 87 %:</b> Perry sitúa el fin del balanceo inicial cuando el pie que oscila queda frente al de apoyo, y el del balanceo medio cuando la tibia queda vertical. Son límites convencionales: en este sujeto los tobillos se cruzan hacia el <span id="adjPct">80</span> % y la tibia llega a la vertical hacia el <span id="tvPct">86</span> %; esos eventos se marcan por separado.</li>
+            <li><b>Planos frontal y transverso:</b> solo con los datos de la base pública (Fukuchi et al., 2018), porque el export del laboratorio no trae los marcadores y su progresión del pie no es fiable. Las gráficas son los ángulos, los momentos y la fuerza mediolateral publicados del mismo sujeto, miembro derecho. Las figuras se dibujan con la trayectoria media de los marcadores de la pelvis (espinas ilíacas y crestas), los trocánteres, el epicóndilo lateral, el maléolo lateral, el talón y las cabezas del primer y quinto metatarsiano, normalizada a cada ciclo del pie derecho; los ciclos se detectan con los marcadores y se corrigen en un 5 % para coincidir con los de la fuerza (se verificó con la oblicuidad y la rotación pélvicas). Como los marcadores de la rodilla y del tobillo son laterales, la pierna se ve por su borde externo. El tronco, los brazos y la cabeza son esquemáticos: la base no tiene marcadores del tronco, de modo que no muestra su inclinación lateral. La flecha frontal parte del centro del pie, no del centro de presión medido. Ventana del gluteus medius según Perry (1992).</li>
+            <li><b>Limitaciones:</b> la figura sagital no muestra la rotación ni la inclinación lateral de la pelvis; esos movimientos están en las pestañas «Frontal» y «Transverso», con los datos de la base pública. En el plano sagital, el miembro izquierdo repite el derecho con medio ciclo de desfase. La velocidad de reproducción solo cambia la animación; una marcha más lenta tendría otras curvas.</li>
+          </ul>
+
+          <p><b>Referencias.</b> Perry J. <i>Gait Analysis: Normal and Pathological Function</i>. Thorofare: SLACK; 1992. · Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4.ª ed. Hoboken: Wiley; 2009. · Neptune RR, Kautz SA, Zajac FE. Contributions of the individual ankle plantar flexors to support, forward progression and swing initiation during walking. <i>J Biomech</i>. 2001;34(11):1387–98. · Francis CA, Lenz AL, Lenhart RL, Thelen DG. The modulation of forward propulsion, vertical support, and center of pressure by the plantarflexors during human walking. <i>Gait Posture</i>. 2013;38(4):993–7. doi:10.1016/j.gaitpost.2013.05.009 · Honert EC, Zelik KE. Inferring muscle-tendon unit power from ankle joint power during the push-off phase of human walking: insights from a multiarticular EMG-driven model. <i>PLoS One</i>. 2016;11(10):e0163169. doi:10.1371/journal.pone.0163169 · Fukuchi CA, Fukuchi RK, Duarte M. A public dataset of overground and treadmill walking kinematics and kinetics in healthy individuals. <i>PeerJ</i>. 2018;6:e4640. doi:10.7717/peerj.4640 · Vaughan CL, Davis BL, O'Connor JC. <i>Dynamics of Human Gait</i>. 2.ª ed. Ciudad del Cabo: Kiboho Publishers; 1999.</p>
+          <p>Versión 7.0 · 22-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
+        </details>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="mini" aria-hidden="true">
+  <button id="mPlay" type="button" tabindex="-1">Pausar</button>
+  <input id="mScrub" type="range" min="0" max="100" step="0.5" value="0" tabindex="-1" aria-hidden="true">
+  <span class="pct" id="mPct">0 %</span>
+  <span class="mph" id="mPh"></span>
+</div>
+<div class="sr" aria-live="polite" id="live"></div>
+
+<script>
+(function(){
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=(v,d=0)=>{const s=(Math.abs(v)<Math.pow(10,-d)/2?0:v).toFixed(d).replace('.',',');return s.replace(/^-/,'−');};
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+
+/* ---------- datos: CTR-005, adulto sano del laboratorio (media de tres caminatas y de los dos lados) ----------
+   NODES: ángulos cada 2 % (0–98 %), Catmull-Rom periódico, ajustados a los del sujeto con el contacto cerrado (fit_v5.py);
+   pelvis: media de los dos medios ciclos, armónicos 2 y 4 (ctr005_RL_pelvis.json).
+   MOM_*: momento interno (N·m/kg); GRF_*: fuerza de reacción (× peso); POW_LAB: potencia del laboratorio (W/kg). Cada 1 %. */
+const DS={
+  lab:{label:'Laboratorio',T:0.99,v:null,FF:10,HR:37,TO:60,H:165,
+NODES:{
+  pelvis:[10.67,10.45,10.18,9.90,9.65,9.21,9.11,9.04,9.02,9.07,9.16,9.28,9.39,9.48,9.56,9.66,9.76,9.88,10.01,10.16,10.36,10.56,10.69,10.77,10.76,10.63,10.41,10.15,9.86,9.59,9.21,9.10,9.03,9.01,9.05,9.15,9.27,9.38,9.48,9.55,9.64,9.75,9.87,10.01,10.13,10.33,10.55,10.68,10.76,10.75],
+  hip:[32.50,32.19,31.66,30.97,30.37,29.77,27.60,24.48,21.18,18.13,15.37,12.80,10.33,7.88,5.37,2.82,0.45,-1.52,-3.04,-4.41,-5.98,-7.64,-9.11,-10.29,-11.10,-11.50,-11.58,-11.28,-10.21,-7.99,-4.67,-1.43,1.91,5.55,9.39,13.20,16.79,20.05,22.97,25.44,27.35,28.89,30.41,32.00,33.38,33.93,33.78,33.45,33.12,32.81],
+  knee:[5.20,8.43,12.02,15.32,17.64,18.57,18.23,16.99,15.23,13.18,10.97,8.67,6.36,4.13,2.14,0.46,-0.87,-1.85,-2.49,-2.75,-2.66,-2.28,-1.51,-0.30,1.39,3.67,6.76,10.83,15.79,21.46,27.74,35.15,42.51,48.57,52.67,54.80,55.25,54.32,52.03,48.19,42.96,36.89,30.46,23.98,17.66,11.87,7.05,3.70,2.30,2.93],
+  ankle:[2.01,0.01,-1.60,-2.44,-2.48,-1.83,-0.26,1.57,3.08,4.12,4.77,5.15,5.43,5.77,6.38,7.32,8.44,9.55,10.57,11.47,12.42,13.29,13.63,13.22,11.89,9.44,5.68,0.70,-5.17,-11.14,-16.07,-18.65,-18.66,-16.58,-13.19,-9.15,-4.90,-0.71,3.00,5.51,6.47,6.47,6.17,5.87,5.66,5.59,5.58,5.43,4.90,3.77]
+},
+MA:[-0.017,-0.035,-0.057,-0.075,-0.082,-0.069,-0.043,-0.006,0.037,0.081,0.119,0.151,0.178,0.201,0.223,0.246,0.271,0.296,0.323,0.348,0.374,0.399,0.424,0.451,0.478,0.506,0.535,0.564,0.595,0.627,0.663,0.704,0.748,0.798,0.852,0.912,0.975,1.044,1.116,1.193,1.271,1.351,1.428,1.501,1.567,1.623,1.665,1.691,1.698,1.683,1.641,1.569,1.462,1.314,1.131,0.924,0.708,0.496,0.293,0.161,0.038,-0.006,-0.006,-0.005,-0.005,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.004,-0.005,-0.005,-0.005,-0.006,-0.006,-0.007,-0.007,-0.008,-0.009,-0.009,-0.009,-0.010,-0.011,-0.011,-0.011,-0.012,-0.012,-0.012,-0.012,-0.012,-0.011,-0.011,-0.010,-0.010],
+MK:[-0.088,-0.076,-0.058,-0.034,-0.001,0.091,0.173,0.241,0.290,0.320,0.333,0.329,0.315,0.295,0.271,0.239,0.204,0.167,0.130,0.094,0.061,0.028,-0.006,-0.040,-0.073,-0.106,-0.138,-0.169,-0.200,-0.233,-0.266,-0.301,-0.335,-0.367,-0.397,-0.424,-0.450,-0.473,-0.494,-0.513,-0.528,-0.539,-0.543,-0.540,-0.531,-0.514,-0.491,-0.460,-0.423,-0.379,-0.330,-0.278,-0.222,-0.167,-0.112,-0.062,-0.018,0.019,0.051,0.077,0.061,0.034,0.032,0.031,0.030,0.029,0.029,0.030,0.029,0.028,0.026,0.023,0.019,0.013,0.007,-0.001,-0.008,-0.016,-0.025,-0.033,-0.041,-0.050,-0.058,-0.066,-0.074,-0.082,-0.089,-0.096,-0.102,-0.106,-0.110,-0.112,-0.113,-0.112,-0.111,-0.109,-0.107,-0.104,-0.100,-0.096],
+MH:[0.144,0.220,0.311,0.387,0.419,0.373,0.353,0.348,0.352,0.359,0.364,0.368,0.365,0.347,0.319,0.284,0.246,0.208,0.170,0.133,0.098,0.064,0.031,0.000,-0.028,-0.054,-0.075,-0.093,-0.106,-0.116,-0.123,-0.130,-0.138,-0.149,-0.165,-0.186,-0.210,-0.238,-0.270,-0.306,-0.348,-0.396,-0.448,-0.499,-0.550,-0.595,-0.634,-0.663,-0.681,-0.684,-0.671,-0.637,-0.582,-0.506,-0.418,-0.329,-0.251,-0.201,-0.207,-0.222,-0.213,-0.187,-0.174,-0.160,-0.145,-0.129,-0.113,-0.096,-0.080,-0.065,-0.050,-0.036,-0.022,-0.010,0.002,0.012,0.022,0.032,0.040,0.049,0.058,0.067,0.075,0.085,0.094,0.102,0.111,0.118,0.125,0.130,0.134,0.136,0.137,0.135,0.132,0.128,0.124,0.119,0.115,0.112],
+GV:[0.000,0.186,0.338,0.458,0.544,0.597,0.658,0.727,0.796,0.859,0.908,0.943,0.961,0.964,0.954,0.933,0.906,0.875,0.845,0.816,0.790,0.769,0.753,0.742,0.734,0.730,0.727,0.727,0.728,0.730,0.735,0.743,0.755,0.770,0.789,0.811,0.835,0.863,0.893,0.926,0.963,1.002,1.041,1.079,1.112,1.139,1.157,1.166,1.163,1.146,1.114,1.064,0.992,0.898,0.781,0.649,0.510,0.373,0.233,0.154,0.051,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GA:[0.000,-0.032,-0.060,-0.084,-0.104,-0.119,-0.133,-0.145,-0.153,-0.157,-0.155,-0.148,-0.138,-0.127,-0.115,-0.103,-0.093,-0.083,-0.074,-0.067,-0.061,-0.055,-0.051,-0.047,-0.043,-0.039,-0.034,-0.029,-0.024,-0.018,-0.012,-0.006,-0.000,0.005,0.011,0.017,0.022,0.029,0.035,0.043,0.052,0.063,0.075,0.088,0.104,0.120,0.139,0.157,0.176,0.194,0.210,0.223,0.231,0.232,0.223,0.205,0.177,0.142,0.092,0.060,0.021,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GVL:[0.000,0.186,0.339,0.459,0.546,0.599,0.658,0.721,0.783,0.839,0.882,0.912,0.928,0.930,0.921,0.903,0.879,0.853,0.826,0.802,0.780,0.761,0.746,0.735,0.726,0.721,0.717,0.715,0.715,0.716,0.720,0.729,0.741,0.758,0.778,0.801,0.827,0.855,0.886,0.920,0.956,0.995,1.033,1.070,1.102,1.128,1.144,1.151,1.145,1.126,1.090,1.036,0.961,0.864,0.745,0.617,0.484,0.348,0.196,0.127,0.050,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAL:[0.000,-0.031,-0.058,-0.080,-0.098,-0.111,-0.122,-0.131,-0.136,-0.138,-0.135,-0.128,-0.118,-0.107,-0.097,-0.087,-0.079,-0.072,-0.066,-0.061,-0.056,-0.052,-0.048,-0.045,-0.041,-0.036,-0.031,-0.026,-0.020,-0.014,-0.008,-0.001,0.005,0.011,0.016,0.021,0.027,0.032,0.039,0.047,0.056,0.067,0.080,0.095,0.111,0.128,0.147,0.165,0.184,0.202,0.217,0.229,0.235,0.233,0.222,0.202,0.175,0.138,0.079,0.053,0.024,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GVR:[0.000,0.186,0.338,0.457,0.542,0.594,0.659,0.733,0.809,0.879,0.935,0.973,0.994,0.998,0.986,0.963,0.932,0.898,0.863,0.830,0.801,0.778,0.760,0.749,0.742,0.738,0.738,0.738,0.741,0.744,0.750,0.758,0.769,0.783,0.800,0.821,0.844,0.870,0.900,0.933,0.970,1.009,1.049,1.087,1.122,1.150,1.170,1.181,1.180,1.167,1.138,1.091,1.023,0.932,0.817,0.680,0.536,0.397,0.271,0.181,0.051,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAR:[0.000,-0.034,-0.064,-0.089,-0.111,-0.128,-0.144,-0.159,-0.170,-0.176,-0.176,-0.169,-0.159,-0.147,-0.133,-0.120,-0.106,-0.094,-0.083,-0.074,-0.065,-0.058,-0.053,-0.048,-0.045,-0.041,-0.037,-0.033,-0.028,-0.023,-0.017,-0.011,-0.006,0.000,0.006,0.012,0.018,0.025,0.032,0.040,0.049,0.058,0.069,0.082,0.096,0.113,0.130,0.149,0.168,0.187,0.204,0.218,0.228,0.231,0.225,0.207,0.179,0.145,0.105,0.067,0.018,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+POW:{ankle:[-0.02,-0.04,-0.06,-0.08,-0.09,-0.02,0.02,0.00,-0.06,-0.13,-0.19,-0.22,-0.23,-0.23,-0.22,-0.20,-0.19,-0.18,-0.18,-0.17,-0.16,-0.14,-0.13,-0.14,-0.17,-0.21,-0.27,-0.31,-0.35,-0.40,-0.45,-0.52,-0.62,-0.73,-0.85,-0.96,-1.05,-1.09,-1.08,-1.02,-0.92,-0.74,-0.50,-0.16,0.28,0.80,1.37,2.00,2.64,3.29,3.94,4.52,4.98,5.26,5.22,4.80,4.01,2.92,1.71,0.86,0.22,-0.02,-0.01,0.00,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.00,0.00,0.00,0.00,0.00,0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.00,-0.01,-0.01],knee:[0.16,0.14,0.11,0.07,0.01,-0.28,-0.47,-0.50,-0.38,-0.18,0.00,0.13,0.21,0.27,0.32,0.34,0.33,0.29,0.23,0.16,0.10,0.04,-0.02,-0.08,-0.14,-0.20,-0.24,-0.27,-0.30,-0.33,-0.35,-0.36,-0.35,-0.31,-0.25,-0.19,-0.13,-0.08,-0.03,0.02,0.09,0.17,0.29,0.41,0.52,0.63,0.70,0.75,0.78,0.78,0.75,0.70,0.63,0.52,0.39,0.24,0.07,-0.11,-0.29,-0.46,-0.38,-0.21,-0.20,-0.19,-0.17,-0.15,-0.13,-0.10,-0.07,-0.05,-0.03,-0.01,0.00,0.01,0.01,-0.00,-0.02,-0.05,-0.09,-0.14,-0.19,-0.24,-0.30,-0.35,-0.40,-0.44,-0.47,-0.51,-0.53,-0.54,-0.54,-0.52,-0.46,-0.38,-0.27,-0.16,-0.04,0.06,0.13,0.16],hip:[0.03,0.04,0.05,0.07,0.09,0.13,0.22,0.35,0.49,0.61,0.69,0.74,0.76,0.74,0.71,0.65,0.57,0.48,0.38,0.30,0.22,0.15,0.08,0.00,-0.07,-0.13,-0.18,-0.22,-0.24,-0.26,-0.27,-0.27,-0.28,-0.28,-0.30,-0.31,-0.34,-0.37,-0.40,-0.45,-0.51,-0.56,-0.61,-0.65,-0.68,-0.69,-0.68,-0.66,-0.60,-0.51,-0.40,-0.27,-0.12,0.02,0.13,0.21,0.25,0.28,0.39,0.52,0.58,0.58,0.60,0.59,0.56,0.52,0.45,0.38,0.31,0.24,0.18,0.12,0.07,0.03,-0.00,-0.03,-0.05,-0.07,-0.08,-0.09,-0.09,-0.09,-0.09,-0.09,-0.09,-0.08,-0.08,-0.07,-0.05,-0.03,-0.01,0.01,0.02,0.03,0.03,0.02,0.01,0.01,0.01,0.02]}},
+  S:{label:'Lenta',T:1.253,v:0.89,FF:11,HR:31,TO:63.8,H:167.5,
+    NODES:{pelvis:[11.10,11.21,11.40,11.60,11.75,11.86,11.86,11.56,11.45,11.18,10.89,10.63,10.44,10.34,10.34,10.40,10.53,10.68,10.81,10.89,10.93,10.92,10.91,10.91,10.97,11.10,11.19,11.39,11.59,11.73,11.82,11.81,11.58,11.44,11.18,10.89,10.62,10.43,10.34,10.33,10.41,10.54,10.68,10.81,10.89,10.93,10.92,10.91,10.91,10.96],hip:[30.16,30.03,29.75,29.19,28.41,27.61,27.01,26.43,24.57,22.23,19.99,18.08,16.41,14.78,13.12,11.52,9.99,8.61,7.42,6.33,5.21,3.92,2.48,0.97,-0.36,-1.19,-1.30,-1.23,-0.83,0.17,1.97,4.61,7.75,10.40,13.05,16.03,19.31,22.63,25.69,28.27,30.33,31.89,32.99,33.65,33.86,33.64,33.07,32.29,31.44,30.67],knee:[5.65,6.63,7.97,9.45,10.86,11.92,12.44,12.49,12.05,11.45,10.93,10.49,10.02,9.38,8.58,7.76,7.17,6.95,6.98,7.15,7.42,7.78,8.29,8.98,9.83,10.80,12.03,13.98,16.87,20.75,25.45,30.60,36.12,42.65,48.95,54.05,57.46,59.01,58.71,56.65,52.99,47.95,41.78,34.83,27.54,20.49,14.31,9.57,6.60,5.42],ankle:[-0.58,-2.02,-3.65,-4.63,-4.51,-3.63,-2.79,-2.27,-1.09,0.41,1.83,3.04,4.05,4.94,5.79,6.65,7.45,8.19,9.00,9.93,10.97,12.09,13.25,14.35,15.18,15.41,14.63,13.03,10.49,6.95,2.58,-2.10,-6.07,-7.73,-7.21,-5.26,-2.76,-0.31,1.77,3.36,4.47,5.13,5.36,5.17,4.58,3.66,2.60,1.60,0.84,0.24]},
+    MA:[0.003,-0.002,-0.016,-0.037,-0.053,-0.060,-0.060,-0.053,-0.042,-0.030,-0.019,-0.009,-0.000,0.008,0.020,0.029,0.041,0.053,0.066,0.079,0.094,0.109,0.125,0.144,0.164,0.185,0.210,0.237,0.267,0.300,0.336,0.375,0.417,0.462,0.509,0.558,0.611,0.666,0.725,0.785,0.848,0.910,0.971,1.030,1.086,1.137,1.180,1.213,1.235,1.243,1.238,1.217,1.180,1.125,1.052,0.960,0.853,0.732,0.597,0.460,0.322,0.198,0.102,0.026,-0.006,-0.019,-0.024,-0.022,-0.018,-0.015,-0.012,-0.011,-0.011,-0.011,-0.011,-0.011,-0.011,-0.011,-0.011,-0.012,-0.012,-0.012,-0.013,-0.013,-0.014,-0.014,-0.015,-0.015,-0.014,-0.013,-0.012,-0.011,-0.010,-0.008,-0.007,-0.004,-0.002,-0.001,-0.000,-0.002],MK:[-0.196,-0.163,-0.106,-0.064,-0.055,-0.042,-0.006,0.036,0.072,0.105,0.133,0.154,0.173,0.191,0.208,0.227,0.245,0.261,0.271,0.277,0.278,0.275,0.268,0.257,0.243,0.226,0.207,0.188,0.164,0.136,0.110,0.087,0.065,0.042,0.019,0.002,-0.013,-0.029,-0.046,-0.060,-0.071,-0.080,-0.086,-0.088,-0.087,-0.084,-0.077,-0.067,-0.054,-0.039,-0.025,-0.011,0.003,0.016,0.027,0.038,0.046,0.055,0.060,0.072,0.074,0.071,0.058,0.030,0.010,0.010,0.017,0.031,0.038,0.035,0.027,0.020,0.015,0.011,0.008,0.004,-0.000,-0.005,-0.011,-0.017,-0.022,-0.027,-0.034,-0.042,-0.050,-0.057,-0.063,-0.071,-0.084,-0.102,-0.124,-0.142,-0.150,-0.152,-0.158,-0.171,-0.187,-0.198,-0.191,-0.155],MH:[0.365,0.350,0.304,0.286,0.322,0.323,0.290,0.291,0.340,0.397,0.436,0.450,0.438,0.406,0.370,0.334,0.308,0.293,0.288,0.277,0.257,0.233,0.211,0.192,0.171,0.148,0.114,0.066,0.035,0.021,0.006,-0.013,-0.029,-0.030,-0.022,-0.033,-0.051,-0.064,-0.080,-0.103,-0.132,-0.163,-0.194,-0.226,-0.258,-0.285,-0.306,-0.327,-0.346,-0.359,-0.365,-0.364,-0.356,-0.344,-0.333,-0.327,-0.317,-0.304,-0.288,-0.275,-0.250,-0.223,-0.198,-0.174,-0.147,-0.162,-0.197,-0.235,-0.250,-0.231,-0.189,-0.143,-0.110,-0.091,-0.077,-0.074,-0.076,-0.074,-0.067,-0.056,-0.041,-0.029,-0.017,-0.002,0.013,0.027,0.037,0.047,0.061,0.085,0.113,0.139,0.157,0.174,0.203,0.243,0.287,0.314,0.305,0.241],
+    GV:[0.049,0.132,0.230,0.307,0.358,0.395,0.425,0.455,0.490,0.534,0.587,0.649,0.720,0.795,0.871,0.937,0.990,1.028,1.052,1.062,1.062,1.053,1.038,1.019,0.998,0.975,0.953,0.933,0.915,0.900,0.890,0.883,0.879,0.878,0.880,0.884,0.891,0.901,0.915,0.931,0.949,0.967,0.985,1.001,1.016,1.030,1.041,1.048,1.050,1.045,1.032,1.009,0.974,0.926,0.864,0.789,0.703,0.605,0.498,0.390,0.281,0.182,0.104,0.040,0.015,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],GA:[0.005,0.007,0.003,-0.012,-0.031,-0.045,-0.055,-0.064,-0.073,-0.081,-0.087,-0.091,-0.094,-0.095,-0.096,-0.096,-0.095,-0.092,-0.088,-0.083,-0.076,-0.068,-0.061,-0.054,-0.048,-0.042,-0.036,-0.031,-0.026,-0.022,-0.018,-0.015,-0.011,-0.008,-0.006,-0.004,-0.002,0.001,0.003,0.005,0.008,0.011,0.014,0.017,0.022,0.027,0.033,0.041,0.050,0.061,0.072,0.084,0.095,0.105,0.113,0.119,0.121,0.118,0.110,0.096,0.077,0.053,0.031,0.011,0.004,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+    GVL:[0.052,0.137,0.238,0.320,0.377,0.420,0.458,0.494,0.534,0.581,0.636,0.700,0.769,0.840,0.906,0.962,1.005,1.035,1.053,1.058,1.055,1.044,1.029,1.011,0.993,0.974,0.954,0.935,0.917,0.902,0.890,0.882,0.877,0.874,0.874,0.876,0.882,0.891,0.905,0.922,0.941,0.961,0.979,0.996,1.012,1.027,1.040,1.052,1.060,1.063,1.058,1.042,1.013,0.971,0.914,0.843,0.755,0.650,0.529,0.399,0.270,0.158,0.076,0.014,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAL:[0.005,0.007,0.002,-0.014,-0.036,-0.053,-0.065,-0.076,-0.086,-0.093,-0.099,-0.101,-0.102,-0.102,-0.101,-0.099,-0.097,-0.094,-0.090,-0.084,-0.078,-0.071,-0.064,-0.058,-0.052,-0.047,-0.042,-0.037,-0.032,-0.028,-0.023,-0.020,-0.016,-0.013,-0.010,-0.007,-0.004,-0.001,0.002,0.006,0.009,0.013,0.017,0.021,0.025,0.030,0.036,0.043,0.052,0.063,0.074,0.086,0.099,0.110,0.121,0.130,0.136,0.136,0.128,0.109,0.082,0.052,0.025,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GVR:[0.047,0.128,0.222,0.293,0.339,0.370,0.393,0.416,0.446,0.487,0.538,0.599,0.671,0.750,0.836,0.912,0.974,1.021,1.052,1.067,1.069,1.061,1.046,1.026,1.002,0.977,0.952,0.930,0.912,0.899,0.890,0.884,0.882,0.883,0.886,0.892,0.900,0.911,0.925,0.940,0.957,0.973,0.990,1.006,1.021,1.034,1.042,1.044,1.040,1.027,1.006,0.976,0.935,0.881,0.814,0.736,0.650,0.560,0.466,0.381,0.292,0.205,0.132,0.067,0.029,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAR:[0.005,0.007,0.003,-0.010,-0.026,-0.038,-0.045,-0.053,-0.061,-0.069,-0.076,-0.081,-0.085,-0.089,-0.092,-0.094,-0.093,-0.091,-0.086,-0.081,-0.074,-0.066,-0.058,-0.050,-0.043,-0.036,-0.030,-0.025,-0.021,-0.016,-0.013,-0.009,-0.006,-0.004,-0.002,-0.000,0.001,0.002,0.003,0.005,0.006,0.008,0.011,0.014,0.018,0.024,0.031,0.039,0.049,0.059,0.071,0.082,0.092,0.100,0.105,0.107,0.105,0.100,0.093,0.084,0.071,0.054,0.037,0.018,0.007,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+P3:{"pObl":[0.69,0.89,1.09,1.3,1.57,1.9,2.3,2.76,3.24,3.72,4.17,4.58,4.96,5.28,5.56,5.78,5.95,6.07,6.16,6.23,6.26,6.27,6.22,6.11,5.93,5.7,5.41,5.09,4.73,4.36,4.0,3.65,3.33,3.02,2.74,2.48,2.26,2.05,1.85,1.66,1.48,1.31,1.14,0.97,0.79,0.61,0.42,0.22,0.0,-0.23,-0.48,-0.75,-1.03,-1.34,-1.67,-2.02,-2.39,-2.77,-3.15,-3.52,-3.87,-4.2,-4.51,-4.81,-5.1,-5.37,-5.62,-5.82,-5.97,-6.06,-6.09,-6.05,-5.95,-5.78,-5.56,-5.31,-5.03,-4.74,-4.44,-4.13,-3.82,-3.5,-3.19,-2.89,-2.62,-2.38,-2.17,-1.97,-1.79,-1.6,-1.41,-1.22,-1.04,-0.87,-0.7,-0.52,-0.3,-0.05,0.23,0.54],"pRot":[4.87,5.02,5.12,5.14,5.06,4.87,4.6,4.24,3.84,3.41,2.97,2.54,2.12,1.75,1.45,1.22,1.09,1.05,1.11,1.23,1.39,1.57,1.74,1.87,1.96,2.01,2.01,1.98,1.91,1.84,1.76,1.69,1.62,1.54,1.46,1.37,1.29,1.2,1.1,1.0,0.88,0.76,0.62,0.46,0.29,0.1,-0.11,-0.33,-0.55,-0.76,-0.95,-1.11,-1.26,-1.37,-1.45,-1.47,-1.45,-1.38,-1.29,-1.17,-1.04,-0.9,-0.76,-0.64,-0.54,-0.47,-0.42,-0.41,-0.42,-0.45,-0.48,-0.52,-0.57,-0.61,-0.64,-0.64,-0.61,-0.55,-0.45,-0.32,-0.17,0.02,0.24,0.49,0.75,1.02,1.3,1.59,1.88,2.19,2.51,2.83,3.15,3.45,3.73,3.98,4.18,4.33,4.44,4.51],"hAdd":[3.36,3.57,3.84,4.19,4.62,5.13,5.72,6.38,7.1,7.85,8.59,9.3,9.97,10.6,11.15,11.63,12.03,12.35,12.59,12.75,12.84,12.87,12.85,12.79,12.68,12.54,12.36,12.14,11.9,11.63,11.35,11.06,10.78,10.51,10.25,10.01,9.79,9.58,9.38,9.18,8.99,8.81,8.62,8.44,8.25,8.04,7.83,7.6,7.35,7.06,6.75,6.41,6.06,5.69,5.3,4.88,4.43,3.94,3.42,2.89,2.36,1.82,1.28,0.71,0.1,-0.52,-1.09,-1.57,-1.9,-2.09,-2.16,-2.13,-2.0,-1.76,-1.43,-1.04,-0.62,-0.2,0.22,0.63,1.02,1.38,1.71,2.01,2.27,2.48,2.64,2.75,2.82,2.87,2.9,2.92,2.94,2.98,3.05,3.16,3.33,3.55,3.83,4.15],"hRot":[3.6,3.85,4.21,4.74,5.39,6.06,6.58,6.83,6.79,6.58,6.36,6.27,6.38,6.68,7.13,7.62,8.03,8.23,8.17,7.9,7.52,7.08,6.65,6.27,5.99,5.86,5.88,5.96,6.02,6.03,6.01,5.97,5.91,5.84,5.74,5.63,5.5,5.39,5.28,5.17,5.02,4.84,4.62,4.39,4.18,3.98,3.81,3.65,3.5,3.35,3.21,3.05,2.89,2.74,2.64,2.58,2.55,2.54,2.55,2.57,2.58,2.57,2.54,2.5,2.44,2.41,2.42,2.46,2.47,2.39,2.21,2.02,1.89,1.85,1.88,1.99,2.16,2.33,2.5,2.65,2.75,2.8,2.79,2.77,2.81,2.92,3.08,3.23,3.36,3.46,3.54,3.56,3.51,3.43,3.39,3.43,3.58,3.83,4.1,4.29],"fpa":[6.35,7.0,7.57,7.99,8.15,7.96,7.51,7.06,6.78,6.67,6.67,6.66,6.65,6.65,6.69,6.73,6.79,6.85,6.91,6.97,7.03,7.09,7.15,7.19,7.21,7.22,7.23,7.24,7.26,7.29,7.33,7.37,7.39,7.39,7.37,7.35,7.33,7.32,7.34,7.35,7.35,7.33,7.3,7.28,7.28,7.29,7.31,7.35,7.4,7.45,7.51,7.58,7.66,7.76,7.86,7.98,8.13,8.3,8.48,8.68,8.98,9.47,10.17,11.04,12.01,13.0,14.04,15.16,16.38,17.65,18.86,19.88,20.64,21.16,21.46,21.61,21.63,21.56,21.43,21.24,20.99,20.69,20.3,19.83,19.26,18.59,17.81,16.94,15.99,14.99,13.97,12.98,12.06,11.24,10.53,9.94,9.46,9.09,8.87,8.82],"hAddL":[1.61,1.69,1.83,2.05,2.34,2.7,3.13,3.62,4.15,4.72,5.32,5.94,6.59,7.25,7.9,8.49,8.99,9.37,9.63,9.78,9.83,9.82,9.77,9.72,9.67,9.62,9.53,9.4,9.22,8.99,8.73,8.45,8.17,7.9,7.65,7.41,7.2,7.01,6.84,6.7,6.58,6.49,6.39,6.28,6.15,5.99,5.81,5.61,5.4,5.2,5.01,4.84,4.64,4.39,4.05,3.63,3.15,2.63,2.08,1.47,0.78,0.0,-0.85,-1.74,-2.61,-3.37,-3.99,-4.43,-4.71,-4.86,-4.94,-4.94,-4.87,-4.73,-4.52,-4.26,-3.96,-3.63,-3.28,-2.91,-2.54,-2.14,-1.74,-1.36,-1.01,-0.71,-0.46,-0.27,-0.12,-0.02,0.05,0.1,0.15,0.21,0.31,0.44,0.61,0.81,1.01,1.2],"pOblL":[0.87,1.03,1.22,1.46,1.76,2.11,2.51,2.93,3.34,3.73,4.09,4.43,4.76,5.11,5.46,5.79,6.06,6.26,6.38,6.42,6.37,6.26,6.1,5.92,5.71,5.47,5.19,4.86,4.5,4.13,3.75,3.36,2.99,2.64,2.32,2.02,1.73,1.47,1.24,1.05,0.9,0.78,0.67,0.57,0.46,0.32,0.17,-0.01,-0.2,-0.37,-0.54,-0.69,-0.87,-1.08,-1.35,-1.69,-2.09,-2.51,-2.95,-3.38,-3.79,-4.18,-4.55,-4.89,-5.18,-5.43,-5.61,-5.73,-5.8,-5.81,-5.78,-5.72,-5.63,-5.49,-5.31,-5.07,-4.79,-4.46,-4.1,-3.73,-3.35,-2.98,-2.61,-2.26,-1.92,-1.61,-1.32,-1.06,-0.83,-0.64,-0.47,-0.34,-0.23,-0.12,-0.0,0.13,0.28,0.45,0.62,0.79],"mHipF":[-0.072,-0.068,-0.049,-0.046,-0.065,-0.049,0.033,0.141,0.241,0.326,0.4,0.475,0.553,0.629,0.707,0.776,0.837,0.887,0.922,0.938,0.939,0.933,0.931,0.935,0.935,0.923,0.9,0.873,0.846,0.824,0.806,0.791,0.775,0.762,0.752,0.746,0.746,0.751,0.758,0.769,0.782,0.793,0.803,0.809,0.812,0.812,0.808,0.798,0.781,0.755,0.72,0.683,0.639,0.584,0.521,0.46,0.397,0.329,0.254,0.19,0.127,0.076,0.034,-0.004,-0.033,-0.054,-0.075,-0.087,-0.083,-0.073,-0.06,-0.048,-0.038,-0.027,-0.014,0.001,0.014,0.024,0.027,0.026,0.024,0.018,0.013,0.008,0.003,-0.004,-0.012,-0.017,-0.021,-0.028,-0.038,-0.047,-0.051,-0.042,-0.032,-0.03,-0.039,-0.047,-0.042,-0.027],"mKneeF":[-0.035,-0.049,-0.062,-0.079,-0.098,-0.09,-0.047,0.009,0.058,0.095,0.126,0.157,0.188,0.217,0.245,0.272,0.294,0.311,0.322,0.328,0.329,0.326,0.321,0.315,0.307,0.296,0.283,0.269,0.253,0.235,0.218,0.2,0.183,0.168,0.153,0.139,0.127,0.117,0.108,0.1,0.095,0.091,0.088,0.084,0.078,0.071,0.063,0.054,0.044,0.033,0.022,0.011,0.002,-0.007,-0.016,-0.023,-0.029,-0.033,-0.037,-0.035,-0.032,-0.024,-0.019,-0.015,-0.012,-0.007,-0.005,-0.005,-0.005,-0.007,-0.009,-0.008,-0.004,0.001,0.007,0.011,0.015,0.017,0.018,0.018,0.016,0.015,0.013,0.011,0.007,0.002,-0.004,-0.008,-0.01,-0.013,-0.015,-0.016,-0.013,-0.007,-0.004,-0.008,-0.016,-0.019,-0.013,-0.002],"gML":[-0.003,-0.007,-0.012,-0.014,-0.013,-0.011,-0.006,0.001,0.01,0.019,0.027,0.034,0.039,0.043,0.046,0.048,0.049,0.05,0.05,0.05,0.05,0.049,0.048,0.047,0.046,0.046,0.046,0.045,0.044,0.043,0.042,0.041,0.04,0.039,0.039,0.039,0.04,0.041,0.042,0.044,0.046,0.049,0.052,0.055,0.057,0.059,0.06,0.061,0.061,0.06,0.058,0.056,0.054,0.05,0.046,0.04,0.035,0.03,0.024,0.019,0.013,0.008,0.005,0.002,0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"gMLL":[-0.003,-0.005,-0.008,-0.007,-0.004,0.002,0.01,0.018,0.027,0.036,0.043,0.047,0.05,0.051,0.052,0.053,0.054,0.056,0.057,0.057,0.057,0.056,0.054,0.051,0.049,0.046,0.044,0.043,0.042,0.041,0.04,0.039,0.037,0.035,0.034,0.034,0.033,0.033,0.032,0.032,0.032,0.033,0.035,0.037,0.039,0.041,0.043,0.043,0.042,0.04,0.037,0.034,0.031,0.028,0.025,0.021,0.016,0.01,0.003,-0.002,-0.005,-0.005,-0.003,-0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"mk":{"R.ASIS":[[0.106,0.89,0.111],[0.106,0.891,0.113],[0.105,0.895,0.116],[0.104,0.9,0.12],[0.103,0.906,0.123],[0.103,0.912,0.128],[0.102,0.916,0.132],[0.101,0.917,0.135],[0.101,0.917,0.138],[0.101,0.917,0.14],[0.101,0.917,0.142],[0.101,0.918,0.144],[0.101,0.919,0.146],[0.1,0.919,0.148],[0.099,0.919,0.149],[0.098,0.918,0.15],[0.097,0.916,0.151],[0.096,0.914,0.151],[0.095,0.911,0.151],[0.094,0.908,0.151],[0.093,0.905,0.15],[0.091,0.902,0.15],[0.09,0.899,0.149],[0.089,0.895,0.149],[0.088,0.892,0.148],[0.087,0.889,0.146],[0.086,0.887,0.144],[0.087,0.886,0.142],[0.086,0.887,0.139],[0.086,0.889,0.135],[0.086,0.89,0.13],[0.086,0.891,0.125],[0.086,0.89,0.12],[0.087,0.89,0.118],[0.087,0.89,0.117],[0.088,0.892,0.118],[0.088,0.894,0.117],[0.089,0.898,0.115],[0.09,0.901,0.112],[0.09,0.904,0.11],[0.091,0.906,0.109],[0.093,0.907,0.109],[0.094,0.907,0.109],[0.096,0.906,0.109],[0.098,0.905,0.109],[0.099,0.903,0.11],[0.101,0.901,0.11],[0.102,0.898,0.111],[0.105,0.894,0.109],[0.106,0.892,0.11]],"L.ASIS":[[0.085,0.888,-0.148],[0.086,0.886,-0.146],[0.087,0.886,-0.143],[0.088,0.887,-0.14],[0.088,0.889,-0.135],[0.088,0.891,-0.13],[0.089,0.892,-0.125],[0.089,0.892,-0.121],[0.089,0.892,-0.119],[0.09,0.893,-0.118],[0.09,0.894,-0.118],[0.091,0.896,-0.117],[0.092,0.899,-0.115],[0.092,0.903,-0.112],[0.093,0.906,-0.11],[0.093,0.908,-0.108],[0.094,0.909,-0.108],[0.095,0.909,-0.107],[0.097,0.908,-0.107],[0.098,0.906,-0.107],[0.1,0.904,-0.108],[0.101,0.902,-0.109],[0.102,0.899,-0.109],[0.103,0.897,-0.11],[0.104,0.896,-0.112],[0.105,0.894,-0.113],[0.105,0.895,-0.115],[0.105,0.898,-0.117],[0.105,0.902,-0.119],[0.105,0.907,-0.122],[0.104,0.912,-0.126],[0.104,0.915,-0.13],[0.104,0.917,-0.133],[0.103,0.918,-0.136],[0.103,0.918,-0.138],[0.103,0.919,-0.14],[0.104,0.92,-0.142],[0.103,0.92,-0.144],[0.102,0.921,-0.146],[0.101,0.92,-0.147],[0.099,0.919,-0.149],[0.098,0.917,-0.149],[0.097,0.915,-0.149],[0.095,0.912,-0.149],[0.094,0.91,-0.149],[0.093,0.907,-0.148],[0.091,0.904,-0.148],[0.09,0.901,-0.148],[0.086,0.896,-0.15],[0.085,0.892,-0.149]],"R.PSIS":[[-0.091,0.921,0.046],[-0.091,0.923,0.048],[-0.092,0.927,0.05],[-0.093,0.931,0.05],[-0.093,0.936,0.05],[-0.094,0.94,0.052],[-0.094,0.943,0.053],[-0.094,0.943,0.056],[-0.094,0.943,0.059],[-0.094,0.944,0.061],[-0.094,0.946,0.062],[-0.095,0.948,0.063],[-0.095,0.949,0.064],[-0.095,0.95,0.064],[-0.095,0.95,0.063],[-0.095,0.949,0.063],[-0.095,0.95,0.062],[-0.096,0.95,0.061],[-0.096,0.949,0.059],[-0.097,0.948,0.057],[-0.097,0.945,0.054],[-0.098,0.941,0.052],[-0.098,0.937,0.049],[-0.098,0.934,0.047],[-0.098,0.933,0.044],[-0.098,0.932,0.041],[-0.099,0.933,0.038],[-0.099,0.934,0.036],[-0.098,0.936,0.035],[-0.098,0.937,0.034],[-0.097,0.939,0.034],[-0.096,0.939,0.032],[-0.096,0.938,0.03],[-0.096,0.936,0.028],[-0.097,0.934,0.025],[-0.097,0.934,0.023],[-0.097,0.937,0.02],[-0.097,0.939,0.02],[-0.097,0.94,0.022],[-0.096,0.94,0.024],[-0.095,0.94,0.026],[-0.095,0.94,0.028],[-0.094,0.94,0.03],[-0.094,0.94,0.032],[-0.094,0.938,0.033],[-0.093,0.935,0.035],[-0.093,0.931,0.038],[-0.092,0.928,0.04],[-0.091,0.924,0.043],[-0.091,0.922,0.044]],"L.PSIS":[[-0.1,0.933,-0.039],[-0.1,0.933,-0.037],[-0.1,0.936,-0.037],[-0.099,0.938,-0.038],[-0.098,0.941,-0.039],[-0.097,0.944,-0.039],[-0.096,0.945,-0.037],[-0.096,0.944,-0.035],[-0.097,0.942,-0.032],[-0.097,0.94,-0.029],[-0.097,0.939,-0.026],[-0.098,0.942,-0.023],[-0.098,0.944,-0.022],[-0.098,0.945,-0.023],[-0.097,0.946,-0.024],[-0.096,0.947,-0.026],[-0.096,0.947,-0.027],[-0.096,0.947,-0.028],[-0.095,0.946,-0.029],[-0.095,0.944,-0.031],[-0.095,0.941,-0.032],[-0.094,0.938,-0.034],[-0.094,0.935,-0.037],[-0.093,0.932,-0.039],[-0.093,0.93,-0.042],[-0.093,0.93,-0.044],[-0.093,0.93,-0.047],[-0.093,0.933,-0.05],[-0.093,0.937,-0.052],[-0.093,0.941,-0.054],[-0.094,0.945,-0.056],[-0.094,0.948,-0.058],[-0.094,0.949,-0.06],[-0.094,0.949,-0.062],[-0.094,0.949,-0.063],[-0.094,0.95,-0.064],[-0.095,0.952,-0.064],[-0.095,0.954,-0.065],[-0.095,0.954,-0.065],[-0.095,0.954,-0.064],[-0.095,0.953,-0.062],[-0.096,0.954,-0.06],[-0.096,0.953,-0.058],[-0.097,0.953,-0.056],[-0.098,0.951,-0.054],[-0.099,0.948,-0.051],[-0.099,0.944,-0.048],[-0.099,0.94,-0.046],[-0.1,0.935,-0.043],[-0.1,0.933,-0.041]],"R.IC":[[0.026,0.968,0.155],[0.028,0.968,0.157],[0.028,0.972,0.16],[0.027,0.979,0.161],[0.025,0.986,0.163],[0.023,0.991,0.164],[0.022,0.995,0.167],[0.022,0.997,0.17],[0.023,0.997,0.173],[0.024,0.997,0.176],[0.024,0.997,0.178],[0.022,0.998,0.179],[0.021,0.999,0.18],[0.02,1.0,0.181],[0.02,1.0,0.182],[0.02,0.999,0.183],[0.02,0.997,0.183],[0.019,0.995,0.183],[0.019,0.992,0.182],[0.018,0.989,0.181],[0.016,0.986,0.18],[0.014,0.983,0.179],[0.012,0.979,0.178],[0.01,0.975,0.176],[0.008,0.972,0.175],[0.007,0.97,0.173],[0.007,0.969,0.171],[0.008,0.969,0.169],[0.01,0.97,0.167],[0.012,0.973,0.164],[0.015,0.975,0.161],[0.016,0.977,0.159],[0.017,0.977,0.155],[0.015,0.975,0.153],[0.011,0.972,0.151],[0.008,0.971,0.15],[0.006,0.972,0.148],[0.006,0.977,0.146],[0.008,0.981,0.145],[0.01,0.984,0.145],[0.013,0.986,0.146],[0.014,0.986,0.147],[0.015,0.985,0.148],[0.016,0.984,0.148],[0.017,0.983,0.148],[0.018,0.982,0.148],[0.02,0.979,0.15],[0.021,0.975,0.152],[0.025,0.971,0.153],[0.025,0.969,0.154]],"L.IC":[[-0.003,0.96,-0.182],[-0.002,0.959,-0.181],[0.001,0.959,-0.179],[0.005,0.961,-0.177],[0.01,0.965,-0.175],[0.014,0.968,-0.172],[0.017,0.971,-0.168],[0.017,0.971,-0.165],[0.015,0.969,-0.163],[0.011,0.966,-0.161],[0.007,0.963,-0.16],[0.003,0.963,-0.158],[0.002,0.968,-0.156],[0.004,0.974,-0.154],[0.007,0.978,-0.153],[0.01,0.98,-0.153],[0.013,0.98,-0.154],[0.014,0.979,-0.155],[0.015,0.979,-0.155],[0.015,0.977,-0.155],[0.015,0.976,-0.155],[0.016,0.973,-0.156],[0.017,0.97,-0.158],[0.019,0.967,-0.161],[0.019,0.965,-0.163],[0.02,0.964,-0.164],[0.022,0.965,-0.166],[0.024,0.968,-0.169],[0.025,0.973,-0.171],[0.025,0.98,-0.173],[0.026,0.986,-0.174],[0.026,0.99,-0.177],[0.027,0.992,-0.18],[0.028,0.992,-0.183],[0.027,0.991,-0.185],[0.025,0.991,-0.187],[0.022,0.992,-0.188],[0.02,0.993,-0.189],[0.018,0.993,-0.19],[0.017,0.993,-0.19],[0.017,0.992,-0.191],[0.017,0.99,-0.191],[0.016,0.987,-0.19],[0.014,0.985,-0.189],[0.011,0.982,-0.188],[0.009,0.979,-0.187],[0.007,0.976,-0.185],[0.004,0.972,-0.184],[-0.001,0.966,-0.184],[-0.003,0.963,-0.183]],"R.GTR":[[0.056,0.789,0.187],[0.057,0.79,0.19],[0.056,0.796,0.193],[0.053,0.802,0.196],[0.05,0.808,0.2],[0.048,0.812,0.204],[0.047,0.816,0.207],[0.046,0.818,0.211],[0.046,0.819,0.215],[0.044,0.821,0.217],[0.042,0.821,0.218],[0.04,0.822,0.219],[0.038,0.822,0.219],[0.035,0.822,0.22],[0.033,0.821,0.22],[0.03,0.819,0.22],[0.026,0.818,0.219],[0.023,0.816,0.217],[0.02,0.815,0.216],[0.017,0.813,0.215],[0.014,0.81,0.214],[0.011,0.808,0.213],[0.008,0.805,0.212],[0.005,0.802,0.211],[0.002,0.8,0.209],[-0.001,0.799,0.206],[-0.003,0.797,0.203],[-0.004,0.797,0.199],[-0.003,0.796,0.196],[-0.002,0.795,0.193],[0.001,0.794,0.188],[0.004,0.791,0.183],[0.007,0.788,0.179],[0.01,0.785,0.175],[0.011,0.785,0.173],[0.012,0.786,0.171],[0.016,0.788,0.17],[0.02,0.791,0.169],[0.025,0.794,0.17],[0.029,0.797,0.171],[0.034,0.799,0.173],[0.037,0.801,0.175],[0.041,0.802,0.177],[0.043,0.802,0.178],[0.045,0.801,0.179],[0.046,0.799,0.179],[0.048,0.796,0.181],[0.049,0.794,0.183],[0.054,0.791,0.184],[0.055,0.79,0.186]],"L.GTR":[[0.002,0.812,-0.213],[0.001,0.81,-0.21],[0.003,0.81,-0.208],[0.005,0.81,-0.205],[0.008,0.81,-0.203],[0.011,0.81,-0.199],[0.013,0.809,-0.195],[0.016,0.807,-0.19],[0.018,0.805,-0.187],[0.018,0.804,-0.184],[0.019,0.805,-0.182],[0.022,0.807,-0.181],[0.026,0.81,-0.18],[0.03,0.814,-0.18],[0.034,0.817,-0.181],[0.038,0.82,-0.182],[0.041,0.821,-0.184],[0.044,0.822,-0.185],[0.045,0.822,-0.186],[0.047,0.821,-0.186],[0.048,0.818,-0.186],[0.049,0.815,-0.188],[0.051,0.812,-0.19],[0.052,0.811,-0.192],[0.054,0.81,-0.194],[0.055,0.809,-0.196],[0.057,0.81,-0.198],[0.058,0.815,-0.201],[0.058,0.821,-0.205],[0.056,0.827,-0.209],[0.054,0.831,-0.212],[0.053,0.835,-0.216],[0.052,0.837,-0.219],[0.052,0.839,-0.222],[0.051,0.84,-0.225],[0.049,0.841,-0.226],[0.047,0.841,-0.227],[0.045,0.841,-0.227],[0.042,0.84,-0.227],[0.038,0.839,-0.228],[0.035,0.838,-0.227],[0.031,0.836,-0.226],[0.027,0.834,-0.224],[0.024,0.832,-0.222],[0.021,0.83,-0.221],[0.018,0.828,-0.22],[0.015,0.825,-0.219],[0.012,0.822,-0.217],[0.006,0.817,-0.217],[0.004,0.814,-0.215]],"R.Knee":[[0.177,0.446,0.102],[0.169,0.447,0.103],[0.163,0.451,0.106],[0.159,0.455,0.107],[0.152,0.457,0.11],[0.139,0.458,0.113],[0.125,0.458,0.116],[0.113,0.457,0.117],[0.101,0.457,0.119],[0.091,0.458,0.12],[0.081,0.458,0.121],[0.072,0.457,0.121],[0.062,0.457,0.121],[0.051,0.456,0.121],[0.039,0.456,0.12],[0.028,0.456,0.119],[0.018,0.455,0.118],[0.009,0.454,0.117],[0.001,0.452,0.116],[-0.009,0.451,0.115],[-0.019,0.449,0.114],[-0.029,0.448,0.113],[-0.039,0.446,0.112],[-0.049,0.445,0.111],[-0.058,0.444,0.109],[-0.066,0.444,0.107],[-0.072,0.444,0.105],[-0.075,0.445,0.103],[-0.072,0.446,0.1],[-0.06,0.445,0.099],[-0.043,0.443,0.101],[-0.022,0.439,0.105],[-0.0,0.435,0.108],[0.024,0.436,0.11],[0.05,0.439,0.111],[0.078,0.443,0.112],[0.104,0.449,0.111],[0.127,0.455,0.11],[0.147,0.462,0.108],[0.163,0.469,0.106],[0.177,0.474,0.104],[0.188,0.477,0.102],[0.195,0.477,0.101],[0.199,0.475,0.1],[0.198,0.471,0.1],[0.195,0.465,0.101],[0.191,0.461,0.102],[0.188,0.457,0.104],[0.187,0.453,0.102],[0.182,0.449,0.102]],"L.Knee":[[-0.055,0.436,-0.128],[-0.061,0.436,-0.125],[-0.064,0.437,-0.123],[-0.061,0.439,-0.121],[-0.051,0.441,-0.121],[-0.035,0.44,-0.124],[-0.016,0.438,-0.129],[0.004,0.436,-0.132],[0.026,0.437,-0.134],[0.052,0.44,-0.135],[0.079,0.444,-0.135],[0.105,0.449,-0.135],[0.128,0.455,-0.134],[0.148,0.461,-0.133],[0.164,0.468,-0.131],[0.177,0.473,-0.129],[0.187,0.476,-0.127],[0.193,0.476,-0.126],[0.196,0.473,-0.125],[0.196,0.469,-0.125],[0.194,0.463,-0.125],[0.193,0.46,-0.125],[0.193,0.458,-0.125],[0.192,0.455,-0.126],[0.19,0.453,-0.126],[0.187,0.45,-0.126],[0.181,0.449,-0.128],[0.173,0.453,-0.131],[0.169,0.456,-0.133],[0.163,0.457,-0.135],[0.151,0.458,-0.137],[0.137,0.458,-0.139],[0.125,0.457,-0.141],[0.115,0.457,-0.143],[0.105,0.457,-0.144],[0.095,0.456,-0.144],[0.086,0.456,-0.144],[0.075,0.455,-0.143],[0.064,0.455,-0.143],[0.052,0.454,-0.142],[0.04,0.453,-0.141],[0.03,0.452,-0.139],[0.021,0.451,-0.137],[0.012,0.449,-0.136],[0.002,0.447,-0.134],[-0.008,0.445,-0.133],[-0.018,0.443,-0.133],[-0.028,0.441,-0.131],[-0.037,0.438,-0.131],[-0.047,0.436,-0.13]],"R.Ankle":[[0.267,0.066,0.076],[0.253,0.066,0.077],[0.232,0.066,0.077],[0.21,0.066,0.078],[0.188,0.065,0.079],[0.165,0.065,0.079],[0.144,0.065,0.079],[0.124,0.065,0.078],[0.104,0.065,0.077],[0.085,0.065,0.077],[0.066,0.065,0.076],[0.048,0.066,0.075],[0.03,0.066,0.075],[0.011,0.066,0.074],[-0.007,0.067,0.074],[-0.026,0.067,0.073],[-0.045,0.067,0.072],[-0.063,0.068,0.072],[-0.082,0.068,0.071],[-0.101,0.069,0.071],[-0.121,0.07,0.071],[-0.141,0.071,0.071],[-0.162,0.072,0.07],[-0.182,0.075,0.07],[-0.204,0.078,0.07],[-0.225,0.083,0.071],[-0.246,0.09,0.072],[-0.265,0.099,0.073],[-0.281,0.111,0.074],[-0.292,0.125,0.076],[-0.295,0.141,0.077],[-0.29,0.156,0.078],[-0.278,0.171,0.077],[-0.259,0.184,0.073],[-0.233,0.192,0.068],[-0.202,0.195,0.065],[-0.167,0.191,0.063],[-0.129,0.181,0.062],[-0.088,0.168,0.061],[-0.043,0.151,0.061],[0.005,0.133,0.062],[0.056,0.116,0.063],[0.108,0.1,0.065],[0.162,0.087,0.069],[0.213,0.08,0.073],[0.256,0.078,0.077],[0.286,0.08,0.08],[0.301,0.081,0.082],[0.304,0.077,0.078],[0.288,0.071,0.077]],"L.Ankle":[[-0.215,0.072,-0.094],[-0.235,0.079,-0.095],[-0.255,0.088,-0.096],[-0.271,0.1,-0.098],[-0.283,0.115,-0.1],[-0.287,0.13,-0.102],[-0.283,0.146,-0.104],[-0.273,0.161,-0.105],[-0.258,0.176,-0.104],[-0.235,0.185,-0.102],[-0.207,0.189,-0.1],[-0.174,0.187,-0.098],[-0.138,0.178,-0.098],[-0.098,0.165,-0.097],[-0.054,0.148,-0.097],[-0.007,0.13,-0.096],[0.043,0.111,-0.094],[0.096,0.095,-0.094],[0.151,0.081,-0.094],[0.204,0.074,-0.096],[0.25,0.072,-0.099],[0.284,0.074,-0.102],[0.303,0.076,-0.104],[0.306,0.075,-0.104],[0.293,0.069,-0.103],[0.27,0.062,-0.102],[0.255,0.061,-0.103],[0.235,0.059,-0.104],[0.213,0.059,-0.105],[0.19,0.058,-0.106],[0.168,0.058,-0.106],[0.147,0.058,-0.106],[0.127,0.058,-0.105],[0.107,0.058,-0.105],[0.089,0.058,-0.105],[0.072,0.058,-0.104],[0.055,0.058,-0.104],[0.037,0.059,-0.103],[0.02,0.059,-0.101],[0.002,0.06,-0.1],[-0.016,0.06,-0.099],[-0.034,0.06,-0.098],[-0.052,0.061,-0.097],[-0.07,0.061,-0.096],[-0.089,0.062,-0.096],[-0.109,0.062,-0.095],[-0.129,0.063,-0.095],[-0.15,0.064,-0.095],[-0.171,0.064,-0.094],[-0.193,0.067,-0.094]],"R.Heel":[[0.236,0.036,0.032],[0.218,0.039,0.033],[0.196,0.04,0.034],[0.173,0.041,0.035],[0.149,0.042,0.036],[0.126,0.042,0.036],[0.104,0.042,0.036],[0.083,0.042,0.036],[0.063,0.043,0.035],[0.044,0.043,0.035],[0.025,0.043,0.034],[0.007,0.043,0.034],[-0.012,0.043,0.034],[-0.03,0.044,0.033],[-0.049,0.044,0.033],[-0.068,0.045,0.032],[-0.087,0.045,0.032],[-0.106,0.046,0.031],[-0.126,0.047,0.031],[-0.145,0.048,0.031],[-0.165,0.049,0.03],[-0.186,0.05,0.03],[-0.207,0.053,0.03],[-0.228,0.056,0.03],[-0.25,0.061,0.029],[-0.271,0.068,0.029],[-0.292,0.077,0.03],[-0.311,0.09,0.031],[-0.326,0.106,0.031],[-0.335,0.125,0.031],[-0.335,0.146,0.03],[-0.327,0.167,0.03],[-0.314,0.185,0.028],[-0.293,0.197,0.023],[-0.266,0.203,0.016],[-0.235,0.202,0.012],[-0.201,0.196,0.009],[-0.164,0.183,0.008],[-0.124,0.166,0.008],[-0.08,0.145,0.008],[-0.031,0.122,0.008],[0.022,0.1,0.01],[0.076,0.08,0.013],[0.13,0.064,0.018],[0.18,0.053,0.024],[0.223,0.047,0.03],[0.254,0.046,0.036],[0.27,0.045,0.039],[0.274,0.041,0.035],[0.258,0.036,0.033]],"L.Heel":[[-0.266,0.065,-0.058],[-0.287,0.074,-0.059],[-0.305,0.087,-0.061],[-0.32,0.104,-0.062],[-0.328,0.124,-0.062],[-0.328,0.145,-0.061],[-0.321,0.167,-0.063],[-0.308,0.186,-0.065],[-0.291,0.2,-0.062],[-0.268,0.207,-0.057],[-0.24,0.208,-0.053],[-0.209,0.202,-0.051],[-0.174,0.19,-0.05],[-0.136,0.173,-0.05],[-0.093,0.152,-0.049],[-0.046,0.128,-0.048],[0.005,0.104,-0.046],[0.06,0.082,-0.045],[0.116,0.065,-0.046],[0.169,0.053,-0.049],[0.214,0.047,-0.055],[0.247,0.046,-0.061],[0.266,0.046,-0.065],[0.269,0.043,-0.065],[0.255,0.039,-0.064],[0.232,0.035,-0.063],[0.214,0.038,-0.064],[0.193,0.04,-0.066],[0.17,0.041,-0.067],[0.147,0.042,-0.067],[0.124,0.042,-0.068],[0.102,0.042,-0.068],[0.082,0.042,-0.068],[0.062,0.042,-0.068],[0.044,0.042,-0.068],[0.026,0.043,-0.067],[0.009,0.043,-0.067],[-0.009,0.043,-0.067],[-0.027,0.044,-0.066],[-0.045,0.044,-0.065],[-0.063,0.045,-0.064],[-0.081,0.045,-0.063],[-0.1,0.046,-0.062],[-0.119,0.046,-0.062],[-0.138,0.047,-0.061],[-0.158,0.048,-0.061],[-0.179,0.05,-0.061],[-0.2,0.052,-0.061],[-0.222,0.053,-0.059],[-0.244,0.058,-0.058]],"R.MT1":[[0.408,0.068,0.038],[0.394,0.06,0.04],[0.372,0.052,0.036],[0.35,0.049,0.036],[0.327,0.047,0.037],[0.305,0.046,0.037],[0.284,0.044,0.037],[0.264,0.043,0.037],[0.244,0.042,0.036],[0.225,0.041,0.036],[0.207,0.041,0.036],[0.189,0.04,0.036],[0.171,0.039,0.035],[0.153,0.039,0.035],[0.134,0.039,0.034],[0.116,0.038,0.034],[0.097,0.038,0.033],[0.077,0.037,0.033],[0.058,0.037,0.033],[0.039,0.037,0.033],[0.018,0.037,0.033],[-0.002,0.037,0.033],[-0.024,0.037,0.033],[-0.045,0.037,0.033],[-0.068,0.037,0.033],[-0.091,0.037,0.033],[-0.115,0.037,0.033],[-0.139,0.037,0.034],[-0.162,0.037,0.035],[-0.184,0.037,0.035],[-0.204,0.038,0.035],[-0.217,0.04,0.034],[-0.215,0.048,0.036],[-0.197,0.057,0.044],[-0.171,0.063,0.051],[-0.136,0.066,0.055],[-0.094,0.066,0.055],[-0.046,0.064,0.053],[0.007,0.059,0.051],[0.063,0.055,0.05],[0.122,0.051,0.052],[0.183,0.049,0.054],[0.243,0.05,0.055],[0.301,0.056,0.053],[0.353,0.066,0.047],[0.395,0.078,0.041],[0.423,0.089,0.038],[0.437,0.096,0.037],[0.44,0.095,0.034],[0.426,0.085,0.036]],"L.MT1":[[-0.088,0.037,-0.041],[-0.112,0.037,-0.041],[-0.135,0.037,-0.041],[-0.158,0.037,-0.042],[-0.181,0.037,-0.042],[-0.2,0.038,-0.043],[-0.214,0.04,-0.043],[-0.217,0.048,-0.045],[-0.203,0.057,-0.053],[-0.177,0.064,-0.063],[-0.143,0.068,-0.071],[-0.103,0.069,-0.074],[-0.056,0.067,-0.074],[-0.005,0.064,-0.072],[0.05,0.06,-0.071],[0.108,0.056,-0.071],[0.167,0.053,-0.073],[0.227,0.052,-0.075],[0.286,0.056,-0.075],[0.34,0.065,-0.07],[0.384,0.078,-0.061],[0.414,0.09,-0.054],[0.431,0.097,-0.049],[0.433,0.098,-0.047],[0.421,0.089,-0.047],[0.4,0.074,-0.047],[0.386,0.064,-0.049],[0.366,0.056,-0.049],[0.344,0.052,-0.048],[0.321,0.05,-0.049],[0.298,0.048,-0.048],[0.277,0.047,-0.048],[0.258,0.046,-0.047],[0.239,0.045,-0.047],[0.221,0.044,-0.047],[0.203,0.044,-0.047],[0.186,0.043,-0.046],[0.169,0.042,-0.046],[0.152,0.042,-0.045],[0.134,0.041,-0.044],[0.116,0.041,-0.044],[0.098,0.04,-0.043],[0.08,0.04,-0.042],[0.062,0.039,-0.042],[0.043,0.039,-0.041],[0.023,0.039,-0.041],[0.002,0.038,-0.041],[-0.02,0.038,-0.041],[-0.041,0.037,-0.041],[-0.064,0.037,-0.041]],"R.MT5":[[0.383,0.049,0.089],[0.366,0.041,0.089],[0.345,0.035,0.087],[0.324,0.032,0.088],[0.301,0.031,0.09],[0.279,0.03,0.091],[0.258,0.029,0.091],[0.237,0.029,0.091],[0.217,0.028,0.091],[0.197,0.028,0.092],[0.179,0.028,0.092],[0.16,0.028,0.092],[0.142,0.028,0.092],[0.123,0.028,0.092],[0.104,0.028,0.092],[0.085,0.028,0.092],[0.066,0.028,0.092],[0.046,0.028,0.092],[0.027,0.028,0.092],[0.007,0.028,0.092],[-0.013,0.028,0.091],[-0.034,0.028,0.091],[-0.056,0.028,0.091],[-0.078,0.028,0.091],[-0.101,0.028,0.091],[-0.125,0.028,0.091],[-0.148,0.029,0.09],[-0.172,0.029,0.09],[-0.195,0.03,0.09],[-0.217,0.032,0.09],[-0.236,0.036,0.089],[-0.246,0.045,0.089],[-0.243,0.058,0.09],[-0.229,0.071,0.093],[-0.205,0.082,0.097],[-0.171,0.087,0.099],[-0.129,0.086,0.099],[-0.082,0.081,0.097],[-0.03,0.073,0.096],[0.025,0.064,0.095],[0.083,0.055,0.096],[0.143,0.049,0.099],[0.204,0.045,0.1],[0.265,0.046,0.099],[0.322,0.052,0.096],[0.369,0.061,0.093],[0.401,0.072,0.091],[0.417,0.078,0.09],[0.42,0.075,0.086],[0.405,0.065,0.087]],"L.MT5":[[-0.113,0.025,-0.104],[-0.137,0.025,-0.104],[-0.16,0.026,-0.104],[-0.183,0.027,-0.104],[-0.205,0.028,-0.104],[-0.225,0.031,-0.104],[-0.239,0.037,-0.103],[-0.24,0.049,-0.105],[-0.229,0.063,-0.11],[-0.207,0.074,-0.117],[-0.175,0.081,-0.123],[-0.136,0.082,-0.125],[-0.09,0.079,-0.125],[-0.04,0.072,-0.124],[0.015,0.063,-0.123],[0.072,0.055,-0.123],[0.131,0.048,-0.125],[0.191,0.044,-0.126],[0.251,0.044,-0.125],[0.309,0.049,-0.121],[0.36,0.058,-0.115],[0.396,0.069,-0.11],[0.416,0.075,-0.105],[0.42,0.074,-0.103],[0.407,0.066,-0.103],[0.384,0.051,-0.103],[0.367,0.04,-0.104],[0.347,0.032,-0.104],[0.326,0.029,-0.105],[0.303,0.028,-0.106],[0.281,0.027,-0.106],[0.26,0.026,-0.107],[0.24,0.026,-0.107],[0.221,0.026,-0.107],[0.202,0.025,-0.107],[0.185,0.025,-0.108],[0.167,0.025,-0.108],[0.15,0.025,-0.108],[0.132,0.025,-0.108],[0.114,0.025,-0.107],[0.095,0.026,-0.107],[0.077,0.026,-0.107],[0.058,0.026,-0.107],[0.039,0.026,-0.106],[0.02,0.026,-0.106],[-0.001,0.026,-0.106],[-0.022,0.026,-0.106],[-0.044,0.026,-0.105],[-0.066,0.025,-0.105],[-0.09,0.025,-0.105]]}},
+POW:{ankle:[0.00,-0.00,-0.04,-0.10,-0.13,-0.08,-0.01,0.04,0.05,0.04,0.02,0.01,0.00,-0.01,-0.01,-0.02,-0.03,-0.04,-0.05,-0.06,-0.07,-0.08,-0.09,-0.10,-0.10,-0.11,-0.11,-0.12,-0.13,-0.15,-0.17,-0.20,-0.24,-0.28,-0.32,-0.37,-0.42,-0.48,-0.54,-0.59,-0.64,-0.68,-0.72,-0.73,-0.73,-0.70,-0.63,-0.50,-0.33,-0.11,0.14,0.42,0.72,1.03,1.33,1.56,1.70,1.72,1.61,1.39,1.08,0.71,0.36,0.08,-0.01,-0.02,0.00,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.00,0.00,0.00,-0.00,-0.00,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.00,-0.00,-0.00,-0.00,0.00],knee:[0.16,0.14,0.08,0.03,0.03,0.03,0.01,-0.05,-0.10,-0.12,-0.09,-0.03,0.04,0.08,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.05,0.05,0.07,0.08,0.10,0.11,0.10,0.08,0.06,0.04,0.02,0.01,0.00,-0.00,0.00,0.00,0.01,0.01,0.01,0.02,0.02,0.03,0.03,0.04,0.04,0.04,0.04,0.03,0.02,0.01,-0.00,-0.02,-0.04,-0.07,-0.11,-0.15,-0.20,-0.27,-0.30,-0.31,-0.26,-0.13,-0.04,-0.04,-0.07,-0.12,-0.13,-0.11,-0.07,-0.04,-0.02,-0.01,-0.00,0.00,-0.00,-0.01,-0.02,-0.04,-0.07,-0.10,-0.13,-0.18,-0.23,-0.27,-0.32,-0.36,-0.43,-0.52,-0.60,-0.63,-0.59,-0.51,-0.45,-0.38,-0.29,-0.16,-0.01,0.05],hip:[0.08,0.08,0.08,0.09,0.13,0.13,0.10,0.08,0.10,0.19,0.34,0.48,0.57,0.58,0.54,0.48,0.42,0.39,0.36,0.33,0.28,0.24,0.20,0.18,0.17,0.17,0.15,0.09,0.05,0.03,0.01,-0.02,-0.03,-0.02,-0.02,-0.02,-0.03,-0.04,-0.05,-0.08,-0.11,-0.15,-0.19,-0.22,-0.24,-0.24,-0.24,-0.22,-0.21,-0.19,-0.16,-0.13,-0.10,-0.06,-0.03,0.01,0.06,0.12,0.20,0.27,0.33,0.35,0.35,0.34,0.30,0.35,0.43,0.53,0.58,0.55,0.46,0.36,0.28,0.22,0.18,0.16,0.15,0.13,0.10,0.07,0.05,0.03,0.02,0.00,-0.01,-0.01,-0.01,-0.01,-0.00,0.01,0.04,0.06,0.08,0.10,0.12,0.14,0.15,0.14,0.10,0.07]}},
+  C:{label:'Cómoda',T:1.025,v:1.3,FF:15,HR:31,TO:60.7,H:167.5,
+    NODES:{pelvis:[12.43,12.38,12.40,12.44,12.50,12.38,12.25,12.22,12.08,11.92,11.81,11.74,11.75,11.84,11.99,12.16,12.35,12.54,12.67,12.72,12.72,12.67,12.58,12.50,12.45,12.44,12.36,12.40,12.43,12.46,12.37,12.23,12.21,12.07,11.92,11.81,11.74,11.75,11.84,11.98,12.17,12.37,12.54,12.66,12.72,12.72,12.67,12.58,12.49,12.42],hip:[33.67,33.23,32.69,32.11,31.79,31.90,31.33,29.38,26.91,24.48,22.23,20.19,18.29,16.43,14.57,12.72,10.81,8.87,7.09,5.49,3.94,2.28,0.43,-1.50,-3.15,-3.99,-3.78,-3.03,-1.61,0.67,3.78,6.80,9.06,11.40,14.29,17.74,21.42,24.96,28.08,30.65,32.69,34.27,35.45,36.23,36.60,36.58,36.23,35.68,35.03,34.33],knee:[7.05,8.43,10.25,12.21,14.09,15.59,16.59,17.00,16.70,15.90,14.90,13.81,12.70,11.57,10.45,9.36,8.50,7.96,7.65,7.49,7.43,7.50,7.78,8.42,9.57,11.32,13.86,17.55,22.22,27.48,32.91,39.12,46.19,52.93,58.53,62.62,65.08,65.89,65.08,62.79,59.13,54.22,48.17,41.12,33.38,25.48,18.16,12.24,8.35,6.73],ankle:[1.43,-0.31,-2.31,-3.70,-3.88,-3.02,-1.53,0.19,1.87,3.34,4.47,5.37,6.16,6.97,7.86,8.81,9.67,10.37,11.04,11.73,12.39,12.97,13.40,13.62,13.43,12.47,10.27,6.79,2.08,-3.29,-8.26,-11.58,-12.52,-11.52,-9.44,-7.00,-4.63,-2.48,-0.60,1.03,2.45,3.65,4.59,5.16,5.23,4.83,4.15,3.49,2.98,2.45]},
+    MA:[0.005,-0.002,-0.019,-0.044,-0.069,-0.085,-0.088,-0.082,-0.070,-0.055,-0.039,-0.024,-0.010,0.004,0.018,0.032,0.047,0.065,0.087,0.112,0.141,0.173,0.206,0.241,0.277,0.314,0.354,0.395,0.440,0.487,0.538,0.591,0.646,0.703,0.762,0.823,0.884,0.945,1.006,1.065,1.123,1.179,1.232,1.281,1.324,1.359,1.386,1.401,1.403,1.390,1.359,1.307,1.226,1.113,0.965,0.787,0.594,0.405,0.236,0.112,0.026,-0.020,-0.034,-0.034,-0.031,-0.025,-0.019,-0.015,-0.013,-0.012,-0.012,-0.012,-0.011,-0.011,-0.011,-0.011,-0.011,-0.011,-0.012,-0.012,-0.013,-0.013,-0.015,-0.016,-0.018,-0.019,-0.020,-0.021,-0.020,-0.019,-0.018,-0.016,-0.013,-0.010,-0.006,-0.002,0.002,0.004,0.006,0.005],MK:[-0.268,-0.233,-0.172,-0.096,-0.033,0.013,0.066,0.135,0.207,0.273,0.332,0.378,0.408,0.423,0.428,0.428,0.424,0.415,0.402,0.382,0.357,0.325,0.287,0.247,0.209,0.173,0.139,0.108,0.077,0.046,0.013,-0.019,-0.050,-0.078,-0.105,-0.129,-0.149,-0.166,-0.179,-0.190,-0.198,-0.202,-0.201,-0.196,-0.188,-0.176,-0.159,-0.135,-0.107,-0.075,-0.042,-0.009,0.023,0.052,0.079,0.100,0.113,0.110,0.090,0.061,0.027,0.005,0.003,0.029,0.055,0.069,0.070,0.063,0.054,0.048,0.044,0.042,0.039,0.036,0.031,0.025,0.019,0.012,0.005,-0.001,-0.007,-0.013,-0.018,-0.023,-0.029,-0.036,-0.044,-0.058,-0.077,-0.104,-0.139,-0.176,-0.213,-0.247,-0.276,-0.300,-0.317,-0.327,-0.325,-0.294],MH:[0.573,0.573,0.551,0.505,0.485,0.496,0.502,0.500,0.513,0.545,0.574,0.592,0.595,0.578,0.542,0.491,0.436,0.385,0.343,0.309,0.283,0.260,0.239,0.214,0.182,0.147,0.115,0.087,0.063,0.045,0.033,0.021,0.001,-0.023,-0.044,-0.065,-0.088,-0.111,-0.132,-0.149,-0.168,-0.201,-0.248,-0.302,-0.357,-0.408,-0.456,-0.498,-0.528,-0.543,-0.542,-0.528,-0.506,-0.483,-0.466,-0.454,-0.438,-0.402,-0.345,-0.276,-0.224,-0.203,-0.220,-0.285,-0.345,-0.367,-0.341,-0.282,-0.212,-0.148,-0.097,-0.060,-0.038,-0.031,-0.032,-0.037,-0.043,-0.047,-0.046,-0.040,-0.030,-0.025,-0.022,-0.018,-0.010,-0.002,0.006,0.018,0.039,0.073,0.122,0.182,0.251,0.326,0.405,0.480,0.546,0.593,0.609,0.557],
+    GV:[0.060,0.152,0.272,0.386,0.479,0.550,0.609,0.665,0.722,0.783,0.846,0.907,0.961,1.006,1.040,1.064,1.078,1.081,1.074,1.057,1.031,0.998,0.962,0.924,0.888,0.856,0.829,0.808,0.793,0.785,0.781,0.781,0.785,0.793,0.804,0.820,0.839,0.863,0.891,0.921,0.953,0.987,1.020,1.052,1.080,1.103,1.119,1.127,1.126,1.113,1.087,1.044,0.980,0.891,0.777,0.640,0.491,0.345,0.208,0.117,0.043,0.009,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],GA:[0.001,-0.002,-0.010,-0.025,-0.047,-0.070,-0.090,-0.108,-0.123,-0.135,-0.143,-0.146,-0.144,-0.139,-0.130,-0.119,-0.108,-0.095,-0.084,-0.073,-0.064,-0.056,-0.050,-0.044,-0.039,-0.034,-0.030,-0.027,-0.024,-0.021,-0.018,-0.016,-0.014,-0.012,-0.010,-0.007,-0.004,0.001,0.006,0.014,0.023,0.034,0.046,0.059,0.074,0.089,0.104,0.120,0.136,0.152,0.169,0.183,0.195,0.201,0.198,0.183,0.156,0.119,0.076,0.044,0.015,0.002,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+    GVL:[0.060,0.152,0.273,0.389,0.481,0.553,0.615,0.672,0.731,0.795,0.862,0.927,0.984,1.032,1.067,1.092,1.104,1.104,1.091,1.067,1.035,0.996,0.954,0.912,0.873,0.839,0.811,0.790,0.777,0.771,0.769,0.772,0.778,0.787,0.799,0.814,0.834,0.858,0.886,0.917,0.952,0.987,1.023,1.056,1.086,1.111,1.129,1.139,1.139,1.128,1.103,1.061,0.998,0.909,0.791,0.650,0.494,0.340,0.197,0.104,0.027,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAL:[0.001,-0.003,-0.012,-0.028,-0.050,-0.074,-0.096,-0.117,-0.134,-0.146,-0.154,-0.156,-0.153,-0.146,-0.136,-0.124,-0.111,-0.098,-0.085,-0.074,-0.065,-0.057,-0.050,-0.044,-0.039,-0.035,-0.030,-0.026,-0.023,-0.020,-0.017,-0.015,-0.013,-0.011,-0.009,-0.006,-0.003,0.001,0.006,0.014,0.023,0.035,0.048,0.062,0.076,0.092,0.107,0.122,0.137,0.152,0.167,0.181,0.194,0.201,0.200,0.186,0.159,0.121,0.076,0.041,0.009,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GVR:[0.060,0.152,0.270,0.384,0.477,0.547,0.604,0.658,0.713,0.771,0.830,0.887,0.938,0.980,1.012,1.036,1.052,1.059,1.057,1.046,1.027,1.001,0.970,0.937,0.904,0.873,0.846,0.825,0.810,0.799,0.793,0.791,0.792,0.799,0.810,0.825,0.845,0.869,0.895,0.924,0.955,0.987,1.018,1.048,1.074,1.095,1.109,1.116,1.113,1.098,1.071,1.026,0.962,0.874,0.762,0.631,0.489,0.351,0.218,0.129,0.060,0.017,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAR:[0.002,-0.001,-0.008,-0.023,-0.044,-0.065,-0.083,-0.099,-0.113,-0.124,-0.132,-0.136,-0.136,-0.132,-0.125,-0.115,-0.105,-0.093,-0.082,-0.072,-0.063,-0.056,-0.049,-0.044,-0.039,-0.034,-0.030,-0.027,-0.024,-0.022,-0.020,-0.018,-0.016,-0.013,-0.011,-0.008,-0.004,0.000,0.006,0.013,0.022,0.033,0.044,0.057,0.071,0.086,0.102,0.119,0.136,0.153,0.170,0.185,0.197,0.202,0.197,0.181,0.153,0.118,0.077,0.047,0.020,0.004,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+P3:{"pObl":[1.02,1.19,1.37,1.55,1.76,2.02,2.32,2.69,3.13,3.63,4.17,4.71,5.24,5.72,6.13,6.44,6.63,6.7,6.66,6.52,6.31,6.04,5.73,5.4,5.06,4.72,4.39,4.06,3.74,3.43,3.13,2.83,2.55,2.27,2.0,1.73,1.46,1.19,0.92,0.66,0.4,0.16,-0.08,-0.3,-0.51,-0.7,-0.88,-1.04,-1.19,-1.34,-1.49,-1.64,-1.81,-2.01,-2.24,-2.51,-2.84,-3.22,-3.66,-4.15,-4.68,-5.23,-5.78,-6.3,-6.74,-7.06,-7.24,-7.27,-7.14,-6.88,-6.53,-6.11,-5.66,-5.2,-4.76,-4.33,-3.92,-3.52,-3.12,-2.73,-2.35,-1.99,-1.64,-1.32,-1.02,-0.75,-0.5,-0.26,-0.04,0.17,0.37,0.55,0.71,0.84,0.97,1.08,1.19,1.3,1.43,1.57],"pRot":[7.61,7.72,7.76,7.71,7.58,7.34,7.01,6.6,6.12,5.59,5.03,4.46,3.88,3.3,2.76,2.26,1.84,1.52,1.29,1.18,1.15,1.18,1.25,1.32,1.37,1.37,1.3,1.18,1.0,0.77,0.52,0.23,-0.07,-0.4,-0.74,-1.1,-1.49,-1.91,-2.35,-2.81,-3.27,-3.73,-4.18,-4.61,-5.01,-5.39,-5.75,-6.1,-6.42,-6.72,-7.0,-7.25,-7.46,-7.6,-7.65,-7.62,-7.5,-7.28,-6.97,-6.58,-6.12,-5.61,-5.08,-4.55,-4.05,-3.59,-3.2,-2.89,-2.68,-2.55,-2.49,-2.48,-2.49,-2.47,-2.4,-2.27,-2.07,-1.8,-1.48,-1.11,-0.69,-0.24,0.24,0.74,1.25,1.77,2.29,2.81,3.33,3.85,4.36,4.85,5.31,5.74,6.14,6.51,6.85,7.16,7.43,7.68],"hAdd":[2.2,2.45,2.75,3.12,3.55,4.06,4.65,5.31,6.07,6.91,7.81,8.75,9.68,10.57,11.38,12.06,12.6,12.97,13.17,13.21,13.13,12.95,12.72,12.45,12.18,11.92,11.68,11.45,11.24,11.04,10.84,10.64,10.44,10.23,10.01,9.79,9.55,9.31,9.05,8.8,8.54,8.27,7.99,7.69,7.37,7.05,6.72,6.39,6.07,5.76,5.48,5.21,4.97,4.73,4.48,4.19,3.82,3.35,2.73,1.98,1.09,0.12,-0.88,-1.82,-2.63,-3.27,-3.7,-3.91,-3.91,-3.73,-3.38,-2.92,-2.38,-1.81,-1.26,-0.74,-0.26,0.19,0.61,1.0,1.37,1.69,1.97,2.2,2.39,2.54,2.63,2.68,2.67,2.64,2.58,2.5,2.42,2.36,2.32,2.32,2.37,2.47,2.64,2.86],"hRot":[4.05,4.08,4.16,4.33,4.61,5.01,5.47,5.91,6.24,6.42,6.45,6.37,6.27,6.23,6.29,6.47,6.72,6.99,7.2,7.31,7.3,7.17,6.92,6.57,6.16,5.76,5.4,5.11,4.9,4.76,4.67,4.65,4.67,4.73,4.8,4.83,4.82,4.74,4.6,4.41,4.19,3.95,3.66,3.32,2.95,2.56,2.2,1.87,1.58,1.33,1.12,0.94,0.79,0.68,0.63,0.66,0.78,0.97,1.21,1.5,1.82,2.18,2.53,2.84,3.05,3.12,3.02,2.77,2.42,2.06,1.77,1.58,1.52,1.57,1.69,1.87,2.1,2.35,2.62,2.92,3.22,3.54,3.86,4.18,4.47,4.75,4.98,5.15,5.24,5.23,5.14,4.99,4.8,4.61,4.44,4.3,4.21,4.18,4.19,4.2],"fpa":[6.19,6.59,6.87,7.01,6.97,6.75,6.37,5.95,5.6,5.39,5.3,5.24,5.18,5.12,5.08,5.05,5.05,5.07,5.1,5.14,5.18,5.2,5.2,5.2,5.19,5.17,5.16,5.17,5.19,5.23,5.27,5.32,5.36,5.4,5.46,5.55,5.69,5.89,6.14,6.44,6.75,7.03,7.26,7.42,7.5,7.5,7.43,7.33,7.22,7.11,7.05,7.03,7.06,7.13,7.25,7.41,7.59,7.77,7.87,7.87,7.77,7.69,7.82,8.33,9.32,10.72,12.35,14.0,15.47,16.65,17.46,17.9,17.99,17.81,17.42,16.89,16.31,15.73,15.22,14.83,14.58,14.47,14.45,14.5,14.58,14.63,14.61,14.45,14.11,13.56,12.79,11.81,10.66,9.43,8.23,7.2,6.47,6.1,6.09,6.3],"hAddL":[0.06,0.25,0.48,0.74,1.07,1.45,1.91,2.47,3.12,3.88,4.74,5.67,6.64,7.59,8.48,9.24,9.82,10.2,10.35,10.29,10.06,9.73,9.35,8.98,8.64,8.37,8.15,7.97,7.81,7.65,7.48,7.29,7.08,6.84,6.59,6.33,6.06,5.8,5.54,5.31,5.08,4.87,4.65,4.42,4.18,3.92,3.66,3.39,3.12,2.84,2.55,2.27,1.99,1.71,1.42,1.09,0.69,0.18,-0.49,-1.3,-2.24,-3.24,-4.23,-5.15,-5.93,-6.53,-6.95,-7.17,-7.22,-7.11,-6.85,-6.48,-6.03,-5.54,-5.02,-4.52,-4.05,-3.62,-3.24,-2.9,-2.59,-2.31,-2.05,-1.82,-1.62,-1.43,-1.27,-1.12,-0.99,-0.88,-0.78,-0.7,-0.64,-0.6,-0.56,-0.52,-0.45,-0.35,-0.22,-0.07],"pOblL":[1.45,1.63,1.83,2.05,2.3,2.58,2.92,3.3,3.74,4.22,4.75,5.3,5.87,6.41,6.88,7.25,7.48,7.55,7.47,7.25,6.93,6.54,6.13,5.72,5.33,4.95,4.59,4.23,3.87,3.5,3.14,2.78,2.45,2.13,1.84,1.56,1.29,1.03,0.79,0.57,0.38,0.21,0.06,-0.07,-0.2,-0.32,-0.44,-0.57,-0.72,-0.88,-1.06,-1.24,-1.45,-1.67,-1.92,-2.21,-2.55,-2.97,-3.46,-4.01,-4.62,-5.23,-5.84,-6.38,-6.84,-7.18,-7.38,-7.43,-7.35,-7.16,-6.87,-6.52,-6.13,-5.73,-5.32,-4.92,-4.52,-4.15,-3.78,-3.43,-3.1,-2.78,-2.48,-2.18,-1.9,-1.62,-1.34,-1.06,-0.79,-0.53,-0.28,-0.04,0.16,0.35,0.51,0.66,0.79,0.92,1.05,1.18],"mHipF":[-0.112,-0.084,-0.058,-0.038,-0.026,-0.003,0.059,0.17,0.307,0.442,0.561,0.668,0.757,0.823,0.869,0.901,0.922,0.934,0.94,0.94,0.929,0.908,0.877,0.842,0.806,0.773,0.749,0.737,0.731,0.724,0.713,0.699,0.683,0.668,0.655,0.648,0.646,0.648,0.655,0.668,0.693,0.727,0.761,0.785,0.795,0.792,0.78,0.764,0.746,0.728,0.706,0.67,0.618,0.549,0.464,0.369,0.271,0.174,0.08,-0.012,-0.094,-0.15,-0.174,-0.175,-0.164,-0.149,-0.126,-0.1,-0.08,-0.07,-0.06,-0.046,-0.028,-0.011,0.002,0.012,0.017,0.019,0.019,0.016,0.007,-0.006,-0.018,-0.03,-0.041,-0.05,-0.055,-0.061,-0.07,-0.076,-0.08,-0.084,-0.09,-0.101,-0.119,-0.142,-0.164,-0.178,-0.179,-0.153],"mKneeF":[-0.068,-0.072,-0.08,-0.089,-0.097,-0.093,-0.062,-0.005,0.064,0.13,0.188,0.239,0.281,0.31,0.327,0.334,0.333,0.327,0.318,0.307,0.295,0.281,0.266,0.248,0.231,0.213,0.195,0.179,0.163,0.147,0.132,0.117,0.103,0.09,0.078,0.069,0.062,0.057,0.054,0.051,0.05,0.05,0.05,0.051,0.052,0.053,0.055,0.058,0.062,0.065,0.067,0.063,0.053,0.037,0.018,-0.002,-0.017,-0.027,-0.03,-0.034,-0.035,-0.03,-0.023,-0.017,-0.015,-0.019,-0.022,-0.021,-0.017,-0.013,-0.008,-0.003,0.003,0.007,0.011,0.013,0.014,0.014,0.013,0.011,0.006,0.0,-0.005,-0.009,-0.015,-0.02,-0.024,-0.028,-0.032,-0.035,-0.037,-0.039,-0.043,-0.049,-0.057,-0.068,-0.079,-0.085,-0.085,-0.071],"gML":[-0.005,-0.01,-0.016,-0.02,-0.021,-0.017,-0.011,-0.002,0.008,0.019,0.029,0.037,0.044,0.048,0.051,0.053,0.052,0.05,0.048,0.046,0.045,0.044,0.044,0.045,0.046,0.046,0.045,0.045,0.043,0.042,0.041,0.039,0.038,0.036,0.036,0.036,0.036,0.037,0.037,0.036,0.035,0.034,0.034,0.035,0.036,0.038,0.041,0.043,0.046,0.047,0.047,0.046,0.041,0.035,0.027,0.019,0.011,0.005,0.002,-0.0,-0.001,-0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"gMLL":[-0.004,-0.008,-0.011,-0.012,-0.009,-0.002,0.008,0.019,0.03,0.041,0.051,0.059,0.065,0.069,0.071,0.071,0.07,0.068,0.066,0.064,0.064,0.064,0.064,0.064,0.064,0.062,0.059,0.055,0.051,0.047,0.044,0.041,0.039,0.038,0.037,0.038,0.038,0.038,0.039,0.039,0.04,0.04,0.04,0.041,0.042,0.044,0.047,0.051,0.054,0.056,0.056,0.054,0.049,0.042,0.033,0.022,0.012,0.004,-0.001,-0.003,-0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"mk":{"R.ASIS":[[0.107,0.887,0.108],[0.106,0.888,0.11],[0.106,0.891,0.114],[0.105,0.897,0.117],[0.104,0.903,0.12],[0.103,0.909,0.124],[0.102,0.913,0.127],[0.101,0.916,0.131],[0.1,0.918,0.134],[0.099,0.92,0.137],[0.099,0.921,0.139],[0.098,0.921,0.14],[0.097,0.921,0.141],[0.096,0.92,0.142],[0.095,0.919,0.143],[0.094,0.916,0.144],[0.092,0.913,0.144],[0.091,0.91,0.145],[0.089,0.906,0.146],[0.087,0.902,0.147],[0.085,0.898,0.148],[0.084,0.894,0.149],[0.082,0.89,0.148],[0.081,0.888,0.148],[0.08,0.885,0.147],[0.079,0.883,0.146],[0.079,0.881,0.145],[0.079,0.881,0.142],[0.08,0.881,0.139],[0.08,0.88,0.135],[0.081,0.879,0.13],[0.082,0.879,0.127],[0.083,0.88,0.125],[0.084,0.884,0.124],[0.085,0.889,0.125],[0.086,0.895,0.125],[0.087,0.9,0.125],[0.088,0.905,0.123],[0.089,0.909,0.121],[0.09,0.911,0.119],[0.092,0.911,0.118],[0.094,0.91,0.117],[0.096,0.908,0.117],[0.098,0.905,0.117],[0.101,0.901,0.117],[0.103,0.898,0.118],[0.105,0.895,0.118],[0.106,0.892,0.119],[0.106,0.889,0.106],[0.107,0.887,0.107]],"L.ASIS":[[0.082,0.882,-0.151],[0.082,0.881,-0.148],[0.083,0.881,-0.145],[0.084,0.882,-0.141],[0.085,0.882,-0.136],[0.086,0.883,-0.13],[0.087,0.883,-0.126],[0.088,0.885,-0.123],[0.089,0.888,-0.122],[0.091,0.892,-0.122],[0.092,0.896,-0.122],[0.093,0.9,-0.121],[0.094,0.904,-0.119],[0.094,0.907,-0.116],[0.095,0.908,-0.114],[0.096,0.909,-0.112],[0.097,0.908,-0.111],[0.098,0.906,-0.111],[0.1,0.904,-0.11],[0.103,0.901,-0.11],[0.105,0.898,-0.109],[0.107,0.896,-0.11],[0.108,0.894,-0.11],[0.109,0.892,-0.111],[0.11,0.89,-0.112],[0.11,0.889,-0.112],[0.11,0.89,-0.113],[0.109,0.892,-0.115],[0.109,0.897,-0.117],[0.109,0.902,-0.119],[0.108,0.906,-0.122],[0.107,0.91,-0.125],[0.106,0.913,-0.128],[0.105,0.915,-0.13],[0.105,0.917,-0.132],[0.105,0.919,-0.133],[0.104,0.92,-0.134],[0.103,0.921,-0.135],[0.101,0.92,-0.136],[0.099,0.919,-0.137],[0.097,0.917,-0.138],[0.095,0.914,-0.139],[0.093,0.91,-0.139],[0.091,0.906,-0.139],[0.089,0.902,-0.14],[0.088,0.898,-0.14],[0.086,0.893,-0.14],[0.084,0.89,-0.14],[0.083,0.887,-0.153],[0.082,0.884,-0.152]],"R.PSIS":[[-0.089,0.921,0.047],[-0.09,0.923,0.05],[-0.09,0.927,0.051],[-0.091,0.931,0.051],[-0.092,0.935,0.051],[-0.092,0.938,0.051],[-0.093,0.941,0.051],[-0.094,0.943,0.051],[-0.094,0.944,0.051],[-0.094,0.947,0.053],[-0.094,0.95,0.055],[-0.094,0.953,0.057],[-0.094,0.955,0.057],[-0.095,0.957,0.057],[-0.095,0.956,0.056],[-0.095,0.955,0.054],[-0.096,0.954,0.051],[-0.096,0.951,0.049],[-0.097,0.949,0.046],[-0.098,0.946,0.043],[-0.098,0.943,0.04],[-0.099,0.939,0.038],[-0.099,0.936,0.035],[-0.099,0.933,0.032],[-0.1,0.931,0.03],[-0.099,0.93,0.029],[-0.099,0.929,0.027],[-0.099,0.93,0.026],[-0.099,0.93,0.027],[-0.099,0.93,0.029],[-0.098,0.929,0.031],[-0.097,0.928,0.032],[-0.096,0.927,0.032],[-0.096,0.93,0.03],[-0.097,0.935,0.028],[-0.097,0.94,0.026],[-0.098,0.944,0.025],[-0.097,0.947,0.026],[-0.097,0.948,0.028],[-0.096,0.948,0.032],[-0.095,0.946,0.036],[-0.093,0.944,0.04],[-0.093,0.942,0.044],[-0.092,0.94,0.047],[-0.092,0.937,0.049],[-0.091,0.933,0.051],[-0.091,0.929,0.053],[-0.091,0.925,0.055],[-0.09,0.923,0.042],[-0.09,0.921,0.045]],"L.PSIS":[[-0.099,0.933,-0.037],[-0.099,0.934,-0.035],[-0.099,0.935,-0.035],[-0.098,0.937,-0.036],[-0.098,0.938,-0.038],[-0.097,0.938,-0.04],[-0.096,0.938,-0.04],[-0.095,0.938,-0.04],[-0.095,0.939,-0.037],[-0.096,0.942,-0.034],[-0.096,0.946,-0.031],[-0.097,0.949,-0.029],[-0.097,0.952,-0.029],[-0.096,0.953,-0.03],[-0.096,0.952,-0.032],[-0.094,0.951,-0.035],[-0.093,0.949,-0.038],[-0.093,0.947,-0.04],[-0.092,0.946,-0.043],[-0.092,0.943,-0.044],[-0.092,0.939,-0.045],[-0.092,0.935,-0.046],[-0.091,0.931,-0.048],[-0.091,0.928,-0.05],[-0.09,0.926,-0.052],[-0.09,0.926,-0.055],[-0.089,0.927,-0.057],[-0.089,0.929,-0.059],[-0.09,0.933,-0.059],[-0.09,0.936,-0.059],[-0.091,0.939,-0.058],[-0.092,0.942,-0.058],[-0.093,0.944,-0.057],[-0.093,0.946,-0.057],[-0.093,0.949,-0.058],[-0.093,0.953,-0.059],[-0.093,0.957,-0.06],[-0.093,0.959,-0.06],[-0.093,0.96,-0.058],[-0.094,0.96,-0.056],[-0.095,0.959,-0.053],[-0.095,0.958,-0.05],[-0.096,0.955,-0.046],[-0.097,0.953,-0.042],[-0.098,0.949,-0.038],[-0.099,0.946,-0.034],[-0.1,0.941,-0.031],[-0.1,0.937,-0.027],[-0.1,0.935,-0.04],[-0.099,0.933,-0.038]],"R.IC":[[0.029,0.965,0.155],[0.031,0.966,0.157],[0.033,0.97,0.16],[0.035,0.976,0.161],[0.035,0.984,0.161],[0.033,0.99,0.162],[0.03,0.995,0.163],[0.026,0.997,0.165],[0.022,0.998,0.168],[0.018,0.999,0.171],[0.016,1.0,0.173],[0.016,1.001,0.175],[0.018,1.002,0.175],[0.021,1.003,0.175],[0.023,1.003,0.175],[0.023,1.002,0.175],[0.022,0.998,0.176],[0.019,0.994,0.176],[0.015,0.989,0.176],[0.011,0.984,0.175],[0.007,0.979,0.174],[0.004,0.975,0.172],[0.002,0.972,0.171],[0.001,0.969,0.169],[-0.0,0.967,0.168],[-0.001,0.965,0.167],[0.0,0.964,0.167],[0.003,0.964,0.167],[0.006,0.965,0.166],[0.01,0.965,0.163],[0.013,0.965,0.161],[0.014,0.964,0.16],[0.012,0.964,0.159],[0.009,0.965,0.158],[0.006,0.968,0.157],[0.004,0.974,0.156],[0.004,0.979,0.154],[0.005,0.984,0.153],[0.008,0.988,0.153],[0.012,0.991,0.153],[0.016,0.991,0.154],[0.02,0.99,0.156],[0.023,0.987,0.158],[0.024,0.984,0.159],[0.024,0.98,0.161],[0.025,0.977,0.161],[0.026,0.973,0.162],[0.026,0.97,0.163],[0.027,0.966,0.15],[0.028,0.965,0.152]],"L.IC":[[-0.004,0.956,-0.182],[-0.002,0.955,-0.181],[0.001,0.956,-0.18],[0.006,0.958,-0.179],[0.012,0.96,-0.177],[0.016,0.96,-0.174],[0.018,0.96,-0.172],[0.017,0.959,-0.17],[0.013,0.96,-0.168],[0.009,0.961,-0.167],[0.006,0.965,-0.166],[0.005,0.97,-0.163],[0.006,0.975,-0.161],[0.009,0.979,-0.159],[0.013,0.981,-0.159],[0.017,0.981,-0.16],[0.021,0.98,-0.161],[0.023,0.978,-0.163],[0.024,0.975,-0.163],[0.024,0.972,-0.163],[0.024,0.969,-0.163],[0.025,0.966,-0.163],[0.027,0.963,-0.164],[0.028,0.961,-0.166],[0.028,0.959,-0.167],[0.029,0.958,-0.169],[0.031,0.959,-0.171],[0.033,0.962,-0.173],[0.035,0.968,-0.173],[0.037,0.975,-0.173],[0.037,0.981,-0.173],[0.035,0.985,-0.173],[0.032,0.988,-0.175],[0.029,0.989,-0.178],[0.026,0.99,-0.18],[0.023,0.991,-0.181],[0.022,0.992,-0.182],[0.021,0.994,-0.182],[0.022,0.996,-0.181],[0.023,0.996,-0.181],[0.022,0.994,-0.18],[0.02,0.99,-0.18],[0.017,0.985,-0.18],[0.012,0.98,-0.179],[0.008,0.975,-0.178],[0.003,0.97,-0.176],[-0.001,0.965,-0.174],[-0.003,0.962,-0.172],[-0.003,0.959,-0.185],[-0.004,0.957,-0.183]],"R.GTR":[[0.056,0.793,0.187],[0.056,0.794,0.19],[0.056,0.797,0.193],[0.054,0.804,0.196],[0.051,0.811,0.2],[0.048,0.817,0.204],[0.046,0.822,0.207],[0.044,0.825,0.21],[0.043,0.826,0.211],[0.041,0.827,0.212],[0.038,0.828,0.213],[0.034,0.829,0.214],[0.03,0.83,0.214],[0.026,0.829,0.214],[0.022,0.827,0.213],[0.018,0.825,0.213],[0.015,0.823,0.212],[0.011,0.82,0.211],[0.006,0.818,0.21],[0.001,0.815,0.208],[-0.003,0.813,0.207],[-0.006,0.81,0.206],[-0.01,0.808,0.205],[-0.013,0.806,0.203],[-0.016,0.804,0.201],[-0.018,0.802,0.199],[-0.019,0.8,0.197],[-0.017,0.798,0.195],[-0.014,0.795,0.193],[-0.009,0.79,0.19],[-0.004,0.785,0.187],[0.001,0.782,0.184],[0.004,0.782,0.182],[0.005,0.786,0.18],[0.006,0.791,0.178],[0.009,0.795,0.178],[0.012,0.801,0.178],[0.017,0.805,0.178],[0.022,0.809,0.18],[0.027,0.812,0.183],[0.033,0.813,0.186],[0.038,0.813,0.189],[0.043,0.812,0.192],[0.046,0.81,0.193],[0.049,0.807,0.193],[0.05,0.803,0.193],[0.052,0.8,0.194],[0.054,0.796,0.196],[0.055,0.794,0.183],[0.056,0.793,0.185]],"L.GTR":[[-0.007,0.818,-0.211],[-0.006,0.816,-0.209],[-0.003,0.815,-0.207],[0.001,0.814,-0.205],[0.006,0.811,-0.202],[0.011,0.808,-0.198],[0.015,0.806,-0.195],[0.018,0.806,-0.192],[0.019,0.809,-0.189],[0.02,0.812,-0.187],[0.022,0.816,-0.186],[0.024,0.821,-0.185],[0.027,0.824,-0.185],[0.032,0.827,-0.185],[0.036,0.83,-0.187],[0.041,0.831,-0.189],[0.046,0.831,-0.191],[0.049,0.83,-0.192],[0.052,0.829,-0.193],[0.055,0.826,-0.192],[0.056,0.823,-0.191],[0.057,0.819,-0.191],[0.059,0.816,-0.193],[0.062,0.815,-0.195],[0.064,0.814,-0.196],[0.064,0.814,-0.198],[0.066,0.814,-0.2],[0.067,0.818,-0.202],[0.067,0.824,-0.204],[0.065,0.832,-0.207],[0.063,0.837,-0.211],[0.06,0.841,-0.213],[0.058,0.844,-0.215],[0.056,0.845,-0.217],[0.054,0.846,-0.217],[0.051,0.847,-0.217],[0.048,0.848,-0.217],[0.043,0.848,-0.218],[0.038,0.848,-0.217],[0.034,0.846,-0.216],[0.029,0.844,-0.215],[0.025,0.841,-0.214],[0.02,0.839,-0.212],[0.015,0.836,-0.21],[0.01,0.833,-0.207],[0.006,0.829,-0.205],[0.002,0.827,-0.203],[-0.001,0.824,-0.202],[-0.004,0.822,-0.216],[-0.006,0.82,-0.214]],"R.Knee":[[0.188,0.449,0.101],[0.18,0.448,0.102],[0.172,0.452,0.104],[0.168,0.456,0.106],[0.164,0.458,0.107],[0.154,0.459,0.109],[0.141,0.459,0.111],[0.125,0.458,0.112],[0.11,0.458,0.113],[0.095,0.457,0.114],[0.079,0.457,0.115],[0.063,0.457,0.115],[0.048,0.457,0.115],[0.033,0.456,0.114],[0.018,0.455,0.113],[0.004,0.454,0.112],[-0.01,0.453,0.111],[-0.022,0.452,0.11],[-0.034,0.45,0.109],[-0.045,0.449,0.108],[-0.058,0.448,0.107],[-0.07,0.448,0.106],[-0.081,0.447,0.106],[-0.09,0.447,0.106],[-0.097,0.447,0.106],[-0.1,0.446,0.105],[-0.098,0.444,0.104],[-0.088,0.442,0.104],[-0.071,0.438,0.108],[-0.051,0.432,0.112],[-0.029,0.427,0.118],[-0.006,0.426,0.121],[0.02,0.43,0.123],[0.048,0.435,0.124],[0.075,0.441,0.125],[0.101,0.449,0.125],[0.124,0.457,0.124],[0.143,0.465,0.123],[0.161,0.472,0.121],[0.175,0.477,0.12],[0.187,0.481,0.119],[0.196,0.482,0.118],[0.203,0.48,0.116],[0.206,0.476,0.116],[0.205,0.47,0.115],[0.202,0.464,0.115],[0.199,0.458,0.115],[0.198,0.455,0.116],[0.199,0.454,0.102],[0.194,0.452,0.101]],"L.Knee":[[-0.088,0.437,-0.135],[-0.086,0.437,-0.133],[-0.076,0.437,-0.133],[-0.059,0.436,-0.135],[-0.04,0.432,-0.138],[-0.019,0.429,-0.141],[0.004,0.428,-0.142],[0.03,0.432,-0.142],[0.056,0.437,-0.143],[0.083,0.442,-0.143],[0.108,0.449,-0.142],[0.131,0.456,-0.14],[0.151,0.463,-0.138],[0.169,0.469,-0.136],[0.184,0.474,-0.134],[0.197,0.478,-0.132],[0.206,0.479,-0.13],[0.212,0.478,-0.128],[0.214,0.475,-0.126],[0.214,0.47,-0.124],[0.213,0.463,-0.123],[0.213,0.459,-0.123],[0.213,0.457,-0.123],[0.213,0.455,-0.122],[0.211,0.454,-0.122],[0.207,0.452,-0.121],[0.2,0.449,-0.122],[0.193,0.452,-0.124],[0.188,0.456,-0.126],[0.184,0.457,-0.126],[0.175,0.457,-0.127],[0.161,0.457,-0.128],[0.145,0.456,-0.128],[0.13,0.455,-0.128],[0.115,0.455,-0.128],[0.1,0.454,-0.128],[0.083,0.454,-0.129],[0.066,0.454,-0.129],[0.05,0.453,-0.128],[0.034,0.452,-0.126],[0.019,0.45,-0.125],[0.005,0.449,-0.124],[-0.008,0.447,-0.122],[-0.021,0.445,-0.121],[-0.033,0.443,-0.12],[-0.047,0.442,-0.119],[-0.06,0.441,-0.119],[-0.071,0.44,-0.119],[-0.079,0.439,-0.137],[-0.085,0.438,-0.136]],"R.Ankle":[[0.279,0.066,0.075],[0.262,0.067,0.076],[0.239,0.065,0.076],[0.215,0.066,0.076],[0.19,0.066,0.076],[0.167,0.066,0.075],[0.142,0.066,0.075],[0.118,0.066,0.074],[0.095,0.066,0.074],[0.071,0.066,0.073],[0.048,0.066,0.073],[0.025,0.067,0.073],[0.002,0.067,0.072],[-0.021,0.067,0.071],[-0.044,0.068,0.07],[-0.068,0.069,0.069],[-0.091,0.069,0.068],[-0.114,0.07,0.067],[-0.137,0.072,0.066],[-0.161,0.074,0.064],[-0.185,0.076,0.063],[-0.209,0.08,0.063],[-0.233,0.084,0.064],[-0.256,0.09,0.066],[-0.28,0.097,0.068],[-0.303,0.107,0.07],[-0.322,0.119,0.072],[-0.335,0.134,0.074],[-0.338,0.149,0.077],[-0.332,0.163,0.08],[-0.32,0.181,0.081],[-0.303,0.196,0.079],[-0.279,0.208,0.077],[-0.25,0.216,0.074],[-0.218,0.217,0.073],[-0.184,0.213,0.073],[-0.148,0.204,0.074],[-0.109,0.191,0.075],[-0.068,0.174,0.076],[-0.023,0.154,0.077],[0.024,0.134,0.078],[0.075,0.115,0.08],[0.129,0.098,0.082],[0.183,0.085,0.084],[0.234,0.079,0.087],[0.276,0.078,0.09],[0.306,0.08,0.093],[0.321,0.082,0.093],[0.319,0.079,0.079],[0.304,0.072,0.076]],"L.Ankle":[[-0.29,0.096,-0.109],[-0.31,0.108,-0.111],[-0.323,0.123,-0.114],[-0.326,0.139,-0.115],[-0.32,0.154,-0.117],[-0.309,0.17,-0.118],[-0.294,0.187,-0.116],[-0.272,0.199,-0.112],[-0.245,0.206,-0.108],[-0.214,0.208,-0.105],[-0.181,0.204,-0.103],[-0.145,0.194,-0.102],[-0.106,0.181,-0.101],[-0.064,0.164,-0.099],[-0.02,0.146,-0.097],[0.029,0.127,-0.094],[0.08,0.108,-0.092],[0.134,0.092,-0.091],[0.188,0.08,-0.091],[0.24,0.075,-0.092],[0.283,0.074,-0.093],[0.313,0.077,-0.095],[0.328,0.078,-0.094],[0.329,0.076,-0.093],[0.314,0.069,-0.091],[0.289,0.062,-0.091],[0.27,0.061,-0.092],[0.248,0.059,-0.093],[0.223,0.059,-0.093],[0.197,0.059,-0.093],[0.173,0.059,-0.092],[0.149,0.059,-0.092],[0.125,0.059,-0.091],[0.102,0.059,-0.091],[0.079,0.059,-0.09],[0.057,0.059,-0.09],[0.034,0.06,-0.09],[0.012,0.06,-0.089],[-0.011,0.061,-0.088],[-0.034,0.061,-0.086],[-0.056,0.062,-0.085],[-0.079,0.062,-0.084],[-0.102,0.063,-0.083],[-0.125,0.064,-0.083],[-0.149,0.065,-0.082],[-0.173,0.067,-0.081],[-0.197,0.07,-0.081],[-0.221,0.073,-0.082],[-0.244,0.079,-0.106],[-0.268,0.086,-0.108]],"R.Heel":[[0.248,0.035,0.031],[0.226,0.038,0.032],[0.201,0.04,0.034],[0.175,0.041,0.034],[0.149,0.042,0.034],[0.124,0.042,0.034],[0.1,0.042,0.034],[0.076,0.043,0.034],[0.052,0.043,0.034],[0.028,0.043,0.033],[0.005,0.043,0.033],[-0.018,0.044,0.033],[-0.042,0.044,0.033],[-0.065,0.045,0.032],[-0.088,0.046,0.031],[-0.112,0.047,0.03],[-0.135,0.048,0.029],[-0.159,0.049,0.028],[-0.183,0.051,0.026],[-0.206,0.055,0.024],[-0.23,0.058,0.022],[-0.255,0.063,0.022],[-0.279,0.07,0.024],[-0.304,0.078,0.026],[-0.328,0.088,0.027],[-0.35,0.101,0.028],[-0.367,0.118,0.029],[-0.376,0.139,0.029],[-0.375,0.16,0.029],[-0.366,0.181,0.033],[-0.353,0.201,0.034],[-0.334,0.217,0.031],[-0.309,0.227,0.026],[-0.28,0.232,0.023],[-0.25,0.231,0.022],[-0.218,0.225,0.022],[-0.184,0.213,0.023],[-0.147,0.196,0.024],[-0.107,0.175,0.025],[-0.063,0.151,0.027],[-0.015,0.125,0.028],[0.038,0.1,0.029],[0.093,0.078,0.032],[0.148,0.061,0.035],[0.2,0.05,0.039],[0.244,0.046,0.044],[0.275,0.044,0.049],[0.291,0.044,0.049],[0.289,0.041,0.035],[0.274,0.036,0.032]],"L.Heel":[[-0.341,0.098,-0.075],[-0.358,0.115,-0.076],[-0.367,0.136,-0.076],[-0.365,0.158,-0.076],[-0.355,0.18,-0.078],[-0.342,0.199,-0.078],[-0.324,0.215,-0.074],[-0.301,0.225,-0.068],[-0.274,0.23,-0.063],[-0.246,0.23,-0.06],[-0.215,0.224,-0.058],[-0.182,0.212,-0.058],[-0.146,0.195,-0.057],[-0.107,0.175,-0.056],[-0.063,0.151,-0.053],[-0.015,0.126,-0.05],[0.038,0.101,-0.047],[0.093,0.079,-0.046],[0.149,0.062,-0.045],[0.202,0.052,-0.047],[0.246,0.048,-0.051],[0.276,0.047,-0.054],[0.292,0.046,-0.055],[0.292,0.043,-0.054],[0.276,0.038,-0.053],[0.251,0.035,-0.052],[0.228,0.038,-0.054],[0.204,0.04,-0.055],[0.178,0.041,-0.056],[0.152,0.042,-0.056],[0.127,0.042,-0.056],[0.102,0.042,-0.056],[0.078,0.043,-0.056],[0.055,0.043,-0.056],[0.032,0.043,-0.055],[0.009,0.043,-0.055],[-0.014,0.044,-0.055],[-0.036,0.045,-0.054],[-0.059,0.045,-0.053],[-0.082,0.046,-0.052],[-0.105,0.047,-0.051],[-0.129,0.048,-0.05],[-0.152,0.049,-0.049],[-0.176,0.05,-0.049],[-0.2,0.053,-0.048],[-0.224,0.056,-0.047],[-0.248,0.06,-0.047],[-0.273,0.066,-0.048],[-0.296,0.074,-0.072],[-0.32,0.085,-0.074]],"R.MT1":[[0.418,0.077,0.033],[0.402,0.064,0.034],[0.378,0.054,0.031],[0.354,0.05,0.031],[0.329,0.047,0.031],[0.305,0.045,0.03],[0.28,0.043,0.03],[0.257,0.042,0.03],[0.233,0.042,0.03],[0.21,0.041,0.03],[0.187,0.041,0.029],[0.164,0.04,0.029],[0.141,0.04,0.029],[0.118,0.039,0.028],[0.095,0.039,0.027],[0.072,0.038,0.027],[0.048,0.038,0.026],[0.024,0.038,0.026],[0.001,0.037,0.026],[-0.023,0.037,0.026],[-0.048,0.037,0.026],[-0.073,0.037,0.026],[-0.099,0.037,0.026],[-0.126,0.037,0.026],[-0.154,0.037,0.027],[-0.182,0.037,0.027],[-0.21,0.037,0.028],[-0.237,0.037,0.028],[-0.26,0.038,0.028],[-0.277,0.042,0.028],[-0.28,0.051,0.029],[-0.265,0.063,0.038],[-0.241,0.071,0.048],[-0.212,0.077,0.055],[-0.174,0.08,0.058],[-0.131,0.079,0.059],[-0.083,0.076,0.057],[-0.031,0.07,0.055],[0.024,0.064,0.054],[0.082,0.058,0.054],[0.142,0.053,0.056],[0.203,0.051,0.058],[0.264,0.053,0.06],[0.322,0.06,0.059],[0.374,0.071,0.056],[0.415,0.085,0.052],[0.442,0.098,0.049],[0.456,0.104,0.047],[0.454,0.103,0.035],[0.44,0.094,0.034]],"L.MT1":[[-0.176,0.037,-0.051],[-0.204,0.037,-0.052],[-0.23,0.037,-0.053],[-0.252,0.038,-0.053],[-0.268,0.041,-0.054],[-0.272,0.051,-0.055],[-0.259,0.062,-0.063],[-0.236,0.07,-0.072],[-0.206,0.075,-0.077],[-0.169,0.078,-0.077],[-0.126,0.079,-0.074],[-0.079,0.076,-0.069],[-0.028,0.072,-0.063],[0.026,0.067,-0.059],[0.083,0.062,-0.056],[0.142,0.057,-0.057],[0.203,0.054,-0.059],[0.264,0.056,-0.06],[0.322,0.063,-0.06],[0.374,0.074,-0.057],[0.415,0.087,-0.052],[0.442,0.099,-0.047],[0.455,0.105,-0.043],[0.455,0.103,-0.04],[0.44,0.094,-0.037],[0.417,0.078,-0.036],[0.4,0.065,-0.037],[0.377,0.055,-0.035],[0.352,0.051,-0.034],[0.327,0.048,-0.034],[0.303,0.046,-0.033],[0.279,0.045,-0.033],[0.255,0.044,-0.032],[0.232,0.043,-0.032],[0.209,0.042,-0.032],[0.187,0.042,-0.031],[0.164,0.042,-0.031],[0.142,0.041,-0.031],[0.12,0.041,-0.03],[0.097,0.04,-0.03],[0.075,0.04,-0.029],[0.052,0.039,-0.028],[0.029,0.039,-0.028],[0.005,0.039,-0.027],[-0.019,0.039,-0.027],[-0.044,0.038,-0.027],[-0.069,0.038,-0.027],[-0.095,0.038,-0.027],[-0.121,0.037,-0.051],[-0.148,0.037,-0.051]],"R.MT5":[[0.396,0.054,0.084],[0.376,0.042,0.083],[0.352,0.034,0.082],[0.328,0.032,0.084],[0.303,0.031,0.085],[0.279,0.03,0.085],[0.255,0.029,0.085],[0.231,0.029,0.085],[0.207,0.029,0.086],[0.183,0.029,0.086],[0.16,0.028,0.086],[0.137,0.028,0.086],[0.113,0.028,0.087],[0.09,0.028,0.087],[0.066,0.028,0.086],[0.042,0.028,0.086],[0.019,0.028,0.086],[-0.006,0.028,0.085],[-0.03,0.028,0.085],[-0.055,0.029,0.084],[-0.08,0.029,0.084],[-0.106,0.029,0.083],[-0.132,0.029,0.084],[-0.159,0.029,0.084],[-0.186,0.029,0.084],[-0.215,0.03,0.085],[-0.243,0.03,0.085],[-0.268,0.032,0.084],[-0.291,0.036,0.084],[-0.304,0.046,0.084],[-0.305,0.061,0.086],[-0.293,0.077,0.092],[-0.271,0.091,0.098],[-0.241,0.1,0.103],[-0.204,0.104,0.105],[-0.162,0.102,0.105],[-0.115,0.095,0.104],[-0.064,0.086,0.103],[-0.01,0.076,0.102],[0.047,0.065,0.102],[0.105,0.055,0.104],[0.166,0.048,0.106],[0.228,0.045,0.108],[0.289,0.048,0.108],[0.345,0.055,0.106],[0.391,0.065,0.103],[0.422,0.076,0.101],[0.438,0.083,0.099],[0.435,0.081,0.087],[0.42,0.071,0.085]],"L.MT5":[[-0.201,0.027,-0.115],[-0.228,0.028,-0.115],[-0.254,0.029,-0.115],[-0.276,0.032,-0.115],[-0.29,0.04,-0.115],[-0.292,0.055,-0.117],[-0.282,0.071,-0.122],[-0.261,0.084,-0.128],[-0.233,0.093,-0.131],[-0.197,0.097,-0.131],[-0.154,0.095,-0.128],[-0.107,0.089,-0.123],[-0.056,0.08,-0.118],[-0.003,0.071,-0.114],[0.053,0.062,-0.112],[0.112,0.053,-0.112],[0.171,0.048,-0.113],[0.232,0.046,-0.114],[0.292,0.049,-0.113],[0.347,0.056,-0.111],[0.393,0.066,-0.107],[0.424,0.076,-0.103],[0.44,0.082,-0.099],[0.44,0.08,-0.096],[0.426,0.071,-0.094],[0.402,0.055,-0.092],[0.381,0.04,-0.091],[0.358,0.031,-0.09],[0.334,0.029,-0.092],[0.309,0.028,-0.093],[0.285,0.027,-0.094],[0.26,0.027,-0.094],[0.237,0.027,-0.094],[0.214,0.026,-0.094],[0.191,0.026,-0.094],[0.168,0.026,-0.094],[0.145,0.026,-0.094],[0.122,0.026,-0.094],[0.099,0.026,-0.094],[0.076,0.026,-0.094],[0.053,0.026,-0.093],[0.029,0.026,-0.093],[0.006,0.026,-0.092],[-0.018,0.027,-0.092],[-0.043,0.027,-0.092],[-0.068,0.027,-0.091],[-0.094,0.027,-0.091],[-0.119,0.027,-0.091],[-0.146,0.026,-0.115],[-0.173,0.027,-0.115]]}},
+POW:{ankle:[0.00,-0.00,-0.05,-0.14,-0.22,-0.19,-0.07,0.05,0.11,0.11,0.08,0.04,0.01,-0.01,-0.02,-0.03,-0.04,-0.06,-0.08,-0.09,-0.11,-0.12,-0.13,-0.14,-0.17,-0.20,-0.24,-0.28,-0.32,-0.35,-0.38,-0.40,-0.43,-0.47,-0.53,-0.58,-0.64,-0.67,-0.69,-0.67,-0.62,-0.54,-0.44,-0.30,-0.13,0.07,0.28,0.49,0.72,0.98,1.29,1.69,2.16,2.65,3.03,3.14,2.85,2.19,1.32,0.58,0.11,-0.06,-0.04,-0.00,0.03,0.04,0.04,0.03,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.00,-0.00,-0.01,-0.01,-0.02,-0.01,-0.01,-0.00,-0.00,0.00,-0.00,-0.00,-0.00],knee:[0.24,0.23,0.18,0.09,0.03,-0.01,-0.09,-0.23,-0.37,-0.47,-0.47,-0.38,-0.22,-0.04,0.10,0.19,0.23,0.25,0.25,0.25,0.26,0.27,0.26,0.23,0.20,0.16,0.12,0.09,0.06,0.04,0.01,-0.01,-0.04,-0.05,-0.06,-0.05,-0.04,-0.02,-0.01,0.00,0.01,0.01,0.01,0.02,0.04,0.06,0.09,0.11,0.12,0.11,0.08,0.02,-0.06,-0.17,-0.29,-0.42,-0.53,-0.57,-0.49,-0.34,-0.15,-0.03,-0.02,-0.16,-0.29,-0.35,-0.33,-0.27,-0.21,-0.16,-0.12,-0.09,-0.06,-0.03,0.00,0.02,0.03,0.02,0.01,-0.00,-0.03,-0.05,-0.08,-0.12,-0.16,-0.21,-0.28,-0.38,-0.53,-0.72,-0.95,-1.15,-1.29,-1.32,-1.24,-1.06,-0.82,-0.52,-0.21,-0.06],hip:[0.29,0.30,0.30,0.27,0.26,0.25,0.24,0.23,0.25,0.32,0.42,0.56,0.71,0.83,0.90,0.90,0.84,0.75,0.66,0.56,0.49,0.43,0.39,0.34,0.29,0.24,0.19,0.15,0.11,0.08,0.06,0.04,0.00,-0.04,-0.07,-0.09,-0.11,-0.13,-0.15,-0.17,-0.20,-0.26,-0.35,-0.44,-0.53,-0.59,-0.61,-0.60,-0.54,-0.44,-0.31,-0.17,-0.02,0.13,0.28,0.43,0.56,0.63,0.62,0.55,0.47,0.45,0.50,0.68,0.86,0.96,0.94,0.83,0.66,0.48,0.32,0.20,0.12,0.09,0.09,0.10,0.10,0.10,0.09,0.06,0.04,0.03,0.03,0.02,0.01,0.00,-0.00,-0.01,-0.01,0.00,0.03,0.07,0.13,0.18,0.21,0.23,0.23,0.22,0.22,0.20]}},
+  F:{label:'Rápida',T:0.925,v:1.64,FF:19,HR:29,TO:58.8,H:167.5,
+    NODES:{pelvis:[13.63,13.53,13.50,13.56,13.52,13.40,13.41,13.29,13.12,12.95,12.82,12.78,12.85,13.04,13.31,13.64,14.00,14.30,14.49,14.57,14.52,14.37,14.16,13.94,13.77,13.64,13.48,13.48,13.53,13.51,13.38,13.41,13.29,13.12,12.95,12.82,12.78,12.85,13.04,13.32,13.66,14.00,14.30,14.49,14.57,14.52,14.37,14.16,13.93,13.73],hip:[37.36,36.93,36.58,36.45,36.76,36.76,35.35,33.06,30.35,27.50,24.70,21.96,19.28,16.72,14.33,11.98,9.64,7.45,5.46,3.61,1.80,-0.06,-2.02,-3.96,-5.51,-6.09,-5.43,-4.11,-2.06,0.77,3.72,5.84,7.97,10.65,13.93,17.57,21.29,24.87,28.15,31.05,33.54,35.58,37.16,38.26,38.90,39.13,39.05,38.78,38.41,37.93],knee:[9.09,10.59,12.50,14.56,16.62,18.48,20.00,20.79,20.70,19.83,18.32,16.38,14.23,11.99,9.85,8.09,6.88,6.06,5.55,5.29,5.31,5.66,6.47,7.84,9.86,12.46,15.70,19.87,24.75,29.98,35.86,42.63,49.11,54.53,58.63,61.37,62.76,62.81,61.56,59.07,55.43,50.73,45.06,38.61,31.65,24.66,18.28,13.17,9.86,8.59],ankle:[3.44,1.41,-1.10,-3.04,-3.48,-2.26,-0.01,2.30,4.14,5.45,6.43,7.20,7.79,8.30,8.84,9.30,9.65,10.04,10.50,10.96,11.33,11.52,11.46,11.04,10.05,8.14,4.92,0.48,-4.79,-9.95,-13.83,-15.53,-15.09,-13.13,-10.38,-7.40,-4.49,-1.79,0.62,2.69,4.39,5.71,6.63,7.11,7.14,6.76,6.17,5.60,5.13,4.58]},
+    MA:[0.010,0.006,-0.012,-0.044,-0.083,-0.114,-0.129,-0.129,-0.118,-0.100,-0.078,-0.056,-0.035,-0.015,0.004,0.022,0.040,0.059,0.080,0.104,0.132,0.162,0.196,0.231,0.267,0.304,0.342,0.381,0.422,0.466,0.515,0.568,0.626,0.687,0.752,0.820,0.889,0.960,1.032,1.104,1.174,1.242,1.305,1.361,1.407,1.441,1.459,1.459,1.439,1.395,1.328,1.234,1.110,0.950,0.762,0.556,0.355,0.187,0.068,-0.014,-0.041,-0.040,-0.039,-0.035,-0.031,-0.026,-0.022,-0.019,-0.016,-0.015,-0.014,-0.014,-0.013,-0.013,-0.012,-0.012,-0.012,-0.012,-0.013,-0.013,-0.014,-0.015,-0.016,-0.018,-0.019,-0.020,-0.021,-0.022,-0.021,-0.020,-0.018,-0.016,-0.013,-0.010,-0.006,-0.003,0.000,0.003,0.005,0.005],MK:[-0.361,-0.322,-0.252,-0.151,-0.042,0.060,0.163,0.277,0.398,0.508,0.602,0.673,0.717,0.733,0.728,0.706,0.674,0.632,0.585,0.533,0.475,0.414,0.348,0.281,0.216,0.154,0.098,0.048,0.002,-0.038,-0.074,-0.105,-0.135,-0.163,-0.189,-0.212,-0.231,-0.247,-0.260,-0.269,-0.273,-0.271,-0.265,-0.252,-0.233,-0.207,-0.174,-0.136,-0.092,-0.045,0.003,0.050,0.095,0.137,0.171,0.190,0.184,0.151,0.101,0.048,0.033,0.049,0.075,0.098,0.112,0.113,0.105,0.093,0.081,0.068,0.057,0.047,0.038,0.031,0.024,0.017,0.010,0.003,-0.003,-0.010,-0.016,-0.022,-0.029,-0.036,-0.044,-0.053,-0.064,-0.080,-0.103,-0.134,-0.171,-0.212,-0.252,-0.287,-0.316,-0.339,-0.360,-0.378,-0.385,-0.365],MH:[0.832,0.865,0.880,0.851,0.804,0.763,0.728,0.701,0.697,0.723,0.751,0.758,0.740,0.699,0.638,0.561,0.476,0.393,0.322,0.268,0.232,0.211,0.198,0.183,0.162,0.133,0.099,0.065,0.033,-0.000,-0.030,-0.055,-0.073,-0.084,-0.091,-0.102,-0.121,-0.144,-0.172,-0.209,-0.257,-0.314,-0.376,-0.439,-0.502,-0.561,-0.617,-0.665,-0.705,-0.733,-0.740,-0.727,-0.699,-0.671,-0.648,-0.626,-0.586,-0.513,-0.417,-0.338,-0.303,-0.312,-0.359,-0.408,-0.437,-0.435,-0.401,-0.343,-0.272,-0.198,-0.131,-0.078,-0.038,-0.014,-0.003,0.001,-0.001,-0.003,-0.003,-0.001,0.003,0.008,0.016,0.028,0.041,0.053,0.064,0.080,0.106,0.151,0.212,0.285,0.359,0.430,0.493,0.553,0.617,0.683,0.733,0.723],
+    GV:[0.067,0.177,0.331,0.496,0.643,0.761,0.856,0.936,1.005,1.065,1.116,1.158,1.189,1.209,1.218,1.214,1.198,1.169,1.129,1.080,1.023,0.962,0.899,0.837,0.778,0.724,0.679,0.642,0.617,0.602,0.600,0.608,0.625,0.650,0.683,0.721,0.764,0.811,0.860,0.909,0.959,1.007,1.051,1.090,1.121,1.144,1.156,1.154,1.138,1.106,1.056,0.986,0.893,0.773,0.633,0.477,0.323,0.191,0.086,0.006,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],GA:[-0.002,-0.012,-0.029,-0.054,-0.085,-0.118,-0.149,-0.174,-0.195,-0.210,-0.217,-0.216,-0.209,-0.196,-0.180,-0.161,-0.140,-0.119,-0.099,-0.080,-0.064,-0.051,-0.041,-0.033,-0.027,-0.023,-0.020,-0.017,-0.014,-0.012,-0.009,-0.007,-0.004,-0.000,0.004,0.009,0.015,0.024,0.034,0.046,0.060,0.075,0.092,0.110,0.128,0.146,0.165,0.182,0.199,0.212,0.224,0.231,0.233,0.225,0.206,0.173,0.129,0.082,0.039,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+    GVL:[0.071,0.183,0.340,0.507,0.655,0.778,0.878,0.963,1.035,1.096,1.148,1.190,1.222,1.243,1.252,1.249,1.233,1.205,1.164,1.112,1.052,0.987,0.919,0.852,0.788,0.729,0.679,0.638,0.608,0.589,0.582,0.586,0.599,0.622,0.652,0.687,0.728,0.773,0.822,0.873,0.925,0.977,1.027,1.072,1.112,1.145,1.169,1.181,1.182,1.168,1.134,1.077,0.990,0.870,0.718,0.545,0.371,0.218,0.098,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAL:[-0.003,-0.014,-0.034,-0.061,-0.095,-0.130,-0.163,-0.191,-0.214,-0.229,-0.236,-0.234,-0.225,-0.210,-0.192,-0.172,-0.151,-0.130,-0.110,-0.091,-0.075,-0.062,-0.052,-0.043,-0.037,-0.032,-0.029,-0.026,-0.023,-0.020,-0.017,-0.014,-0.011,-0.007,-0.003,0.002,0.009,0.018,0.028,0.040,0.053,0.068,0.084,0.101,0.119,0.137,0.155,0.174,0.193,0.211,0.228,0.241,0.248,0.246,0.229,0.196,0.149,0.098,0.049,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GVR:[0.064,0.171,0.323,0.486,0.630,0.744,0.834,0.909,0.975,1.034,1.084,1.125,1.156,1.175,1.183,1.179,1.162,1.133,1.094,1.047,0.994,0.937,0.878,0.821,0.768,0.719,0.678,0.647,0.626,0.616,0.618,0.629,0.650,0.679,0.714,0.755,0.800,0.848,0.897,0.946,0.993,1.036,1.075,1.107,1.131,1.143,1.143,1.127,1.094,1.044,0.977,0.894,0.796,0.676,0.548,0.410,0.276,0.163,0.073,0.012,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+GAR:[-0.001,-0.009,-0.024,-0.047,-0.076,-0.107,-0.134,-0.157,-0.177,-0.191,-0.198,-0.199,-0.193,-0.182,-0.167,-0.149,-0.129,-0.108,-0.088,-0.069,-0.053,-0.039,-0.029,-0.022,-0.017,-0.014,-0.011,-0.008,-0.006,-0.003,-0.001,0.001,0.004,0.007,0.011,0.015,0.022,0.030,0.040,0.052,0.067,0.083,0.100,0.118,0.137,0.156,0.174,0.191,0.204,0.214,0.219,0.221,0.217,0.204,0.183,0.150,0.108,0.066,0.030,0.005,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000],
+P3:{"pObl":[2.03,2.14,2.26,2.41,2.61,2.87,3.21,3.63,4.13,4.73,5.4,6.11,6.81,7.45,7.98,8.35,8.53,8.53,8.37,8.1,7.74,7.32,6.86,6.38,5.89,5.39,4.9,4.41,3.94,3.48,3.06,2.67,2.31,1.98,1.69,1.44,1.2,0.99,0.79,0.6,0.4,0.19,-0.04,-0.29,-0.56,-0.84,-1.12,-1.39,-1.63,-1.85,-2.06,-2.25,-2.46,-2.72,-3.03,-3.41,-3.86,-4.36,-4.91,-5.51,-6.13,-6.75,-7.34,-7.87,-8.27,-8.51,-8.56,-8.42,-8.09,-7.63,-7.07,-6.47,-5.86,-5.26,-4.68,-4.13,-3.6,-3.09,-2.61,-2.17,-1.75,-1.37,-1.03,-0.72,-0.44,-0.19,0.03,0.23,0.41,0.57,0.71,0.84,0.96,1.09,1.21,1.34,1.48,1.62,1.76,1.91],"pRot":[8.62,8.71,8.71,8.63,8.45,8.15,7.75,7.25,6.68,6.06,5.4,4.73,4.04,3.35,2.69,2.07,1.52,1.08,0.76,0.57,0.49,0.51,0.6,0.74,0.88,1.01,1.1,1.12,1.08,0.96,0.76,0.5,0.17,-0.23,-0.69,-1.21,-1.78,-2.4,-3.06,-3.74,-4.43,-5.1,-5.74,-6.31,-6.81,-7.22,-7.55,-7.8,-7.98,-8.09,-8.15,-8.16,-8.11,-7.99,-7.79,-7.51,-7.16,-6.72,-6.23,-5.7,-5.14,-4.58,-4.02,-3.48,-2.96,-2.5,-2.1,-1.79,-1.57,-1.45,-1.42,-1.46,-1.52,-1.59,-1.63,-1.62,-1.55,-1.39,-1.16,-0.85,-0.47,-0.03,0.45,0.96,1.5,2.05,2.62,3.18,3.74,4.3,4.83,5.33,5.8,6.21,6.57,6.87,7.1,7.26,7.37,7.43],"hAdd":[2.12,2.35,2.67,3.09,3.61,4.26,5.01,5.87,6.82,7.86,8.96,10.1,11.23,12.3,13.25,14.04,14.64,15.03,15.21,15.22,15.08,14.81,14.45,14.01,13.53,13.03,12.53,12.04,11.58,11.15,10.77,10.43,10.13,9.87,9.65,9.45,9.27,9.1,8.92,8.73,8.51,8.24,7.91,7.52,7.07,6.59,6.11,5.64,5.22,4.84,4.51,4.21,3.91,3.59,3.23,2.79,2.27,1.66,0.95,0.15,-0.72,-1.62,-2.51,-3.3,-3.94,-4.38,-4.59,-4.55,-4.29,-3.83,-3.21,-2.48,-1.69,-0.88,-0.1,0.64,1.31,1.91,2.42,2.84,3.16,3.39,3.55,3.63,3.65,3.62,3.55,3.46,3.34,3.2,3.05,2.89,2.74,2.6,2.5,2.44,2.44,2.51,2.64,2.83],"hRot":[4.31,4.19,4.09,4.07,4.17,4.42,4.81,5.3,5.81,6.26,6.61,6.85,7.0,7.13,7.29,7.49,7.72,7.92,8.04,8.03,7.89,7.64,7.3,6.9,6.48,6.05,5.65,5.31,5.03,4.82,4.68,4.59,4.57,4.59,4.64,4.68,4.69,4.63,4.48,4.26,3.95,3.61,3.24,2.88,2.52,2.18,1.87,1.59,1.34,1.12,0.93,0.76,0.61,0.51,0.46,0.5,0.64,0.88,1.17,1.5,1.81,2.1,2.35,2.52,2.6,2.52,2.29,1.89,1.42,0.95,0.57,0.33,0.25,0.31,0.49,0.75,1.06,1.4,1.75,2.13,2.52,2.9,3.28,3.63,3.96,4.25,4.5,4.7,4.84,4.93,4.96,4.92,4.83,4.68,4.52,4.36,4.24,4.16,4.14,4.13],"fpa":[5.04,5.45,5.78,5.93,5.83,5.45,4.89,4.3,3.84,3.6,3.53,3.56,3.62,3.67,3.72,3.76,3.78,3.81,3.83,3.85,3.86,3.87,3.86,3.84,3.81,3.78,3.76,3.76,3.78,3.83,3.91,4.02,4.16,4.34,4.57,4.84,5.17,5.52,5.87,6.2,6.47,6.65,6.72,6.69,6.56,6.36,6.13,5.91,5.71,5.57,5.47,5.42,5.42,5.46,5.53,5.59,5.62,5.56,5.41,5.24,5.18,5.39,6.01,7.04,8.39,9.87,11.29,12.5,13.4,13.98,14.27,14.34,14.29,14.16,14.01,13.86,13.74,13.64,13.59,13.57,13.58,13.59,13.58,13.53,13.44,13.29,13.05,12.7,12.25,11.68,11.0,10.25,9.45,8.66,7.93,7.31,6.84,6.52,6.34,6.3],"hAddL":[-0.15,0.04,0.29,0.59,0.97,1.44,1.99,2.66,3.46,4.39,5.45,6.6,7.79,8.95,10.0,10.88,11.55,11.95,12.1,12.0,11.72,11.29,10.79,10.26,9.72,9.19,8.7,8.25,7.84,7.48,7.17,6.88,6.62,6.37,6.14,5.91,5.68,5.45,5.23,5.01,4.79,4.57,4.31,4.04,3.73,3.42,3.12,2.84,2.6,2.4,2.23,2.08,1.94,1.78,1.58,1.33,0.98,0.5,-0.13,-0.91,-1.82,-2.83,-3.87,-4.86,-5.75,-6.48,-7.03,-7.39,-7.57,-7.57,-7.41,-7.12,-6.7,-6.18,-5.58,-4.92,-4.24,-3.56,-2.91,-2.3,-1.75,-1.28,-0.89,-0.57,-0.33,-0.16,-0.04,0.02,0.04,0.02,-0.05,-0.14,-0.24,-0.36,-0.45,-0.52,-0.55,-0.52,-0.46,-0.35],"pOblL":[1.45,1.6,1.77,1.96,2.19,2.49,2.86,3.31,3.87,4.53,5.27,6.07,6.86,7.6,8.22,8.66,8.88,8.86,8.62,8.2,7.67,7.08,6.46,5.84,5.24,4.66,4.11,3.59,3.09,2.63,2.19,1.78,1.4,1.05,0.73,0.43,0.15,-0.09,-0.3,-0.48,-0.64,-0.78,-0.91,-1.03,-1.16,-1.29,-1.41,-1.52,-1.62,-1.7,-1.77,-1.85,-1.95,-2.08,-2.26,-2.51,-2.84,-3.25,-3.75,-4.34,-5.01,-5.72,-6.44,-7.11,-7.69,-8.14,-8.41,-8.51,-8.46,-8.26,-7.97,-7.61,-7.19,-6.74,-6.26,-5.76,-5.25,-4.75,-4.25,-3.78,-3.33,-2.92,-2.54,-2.2,-1.88,-1.6,-1.34,-1.1,-0.87,-0.65,-0.44,-0.22,0.0,0.24,0.48,0.73,0.96,1.17,1.35,1.5],"mHipF":[-0.177,-0.124,-0.073,-0.036,-0.019,0.004,0.072,0.205,0.382,0.562,0.718,0.844,0.937,0.992,1.013,1.011,0.999,0.988,0.98,0.972,0.955,0.925,0.883,0.831,0.77,0.707,0.649,0.602,0.572,0.557,0.553,0.555,0.563,0.575,0.587,0.598,0.609,0.622,0.642,0.671,0.706,0.744,0.778,0.8,0.806,0.795,0.769,0.732,0.689,0.641,0.592,0.538,0.472,0.388,0.289,0.185,0.092,0.015,-0.053,-0.1,-0.137,-0.159,-0.171,-0.171,-0.158,-0.139,-0.127,-0.123,-0.119,-0.104,-0.077,-0.043,-0.008,0.021,0.041,0.051,0.053,0.049,0.042,0.033,0.025,0.018,0.012,0.007,0.003,-0.002,-0.012,-0.028,-0.048,-0.07,-0.09,-0.108,-0.122,-0.134,-0.146,-0.163,-0.19,-0.215,-0.221,-0.188],"mKneeF":[-0.103,-0.103,-0.109,-0.119,-0.128,-0.12,-0.081,-0.007,0.085,0.176,0.256,0.325,0.38,0.417,0.436,0.437,0.426,0.406,0.381,0.354,0.327,0.299,0.274,0.249,0.226,0.203,0.181,0.161,0.142,0.125,0.11,0.097,0.086,0.079,0.074,0.072,0.071,0.072,0.073,0.074,0.074,0.075,0.077,0.08,0.083,0.086,0.087,0.086,0.084,0.08,0.073,0.063,0.049,0.031,0.012,-0.004,-0.012,-0.015,-0.017,-0.012,-0.014,-0.015,-0.017,-0.021,-0.024,-0.026,-0.028,-0.029,-0.028,-0.024,-0.016,-0.006,0.003,0.01,0.015,0.018,0.019,0.019,0.016,0.013,0.01,0.008,0.006,0.004,0.003,0.002,-0.002,-0.008,-0.017,-0.028,-0.039,-0.05,-0.059,-0.067,-0.074,-0.083,-0.095,-0.105,-0.105,-0.084],"gML":[-0.006,-0.012,-0.02,-0.026,-0.028,-0.024,-0.017,-0.007,0.005,0.018,0.029,0.039,0.047,0.053,0.058,0.06,0.06,0.058,0.054,0.051,0.048,0.047,0.046,0.046,0.047,0.047,0.047,0.046,0.044,0.041,0.038,0.036,0.033,0.032,0.032,0.032,0.032,0.031,0.03,0.028,0.026,0.025,0.025,0.027,0.03,0.033,0.037,0.039,0.04,0.04,0.038,0.034,0.029,0.022,0.014,0.007,0.001,-0.002,-0.002,-0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"gMLL":[-0.004,-0.009,-0.013,-0.015,-0.012,-0.004,0.008,0.023,0.039,0.054,0.067,0.077,0.084,0.088,0.09,0.088,0.085,0.08,0.074,0.069,0.064,0.061,0.059,0.058,0.057,0.057,0.056,0.054,0.051,0.047,0.043,0.039,0.035,0.031,0.029,0.026,0.025,0.023,0.022,0.02,0.019,0.018,0.018,0.02,0.022,0.026,0.03,0.034,0.037,0.039,0.039,0.037,0.032,0.026,0.017,0.009,0.003,-0.001,-0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"mk":{"R.ASIS":[[0.109,0.88,0.11],[0.108,0.881,0.111],[0.107,0.884,0.115],[0.106,0.889,0.118],[0.105,0.895,0.121],[0.103,0.9,0.123],[0.102,0.904,0.127],[0.101,0.908,0.131],[0.1,0.911,0.135],[0.099,0.915,0.138],[0.098,0.918,0.14],[0.097,0.92,0.14],[0.097,0.921,0.14],[0.096,0.92,0.139],[0.095,0.917,0.139],[0.093,0.914,0.139],[0.092,0.911,0.139],[0.09,0.906,0.14],[0.088,0.901,0.141],[0.085,0.897,0.143],[0.083,0.892,0.145],[0.081,0.887,0.147],[0.08,0.883,0.148],[0.079,0.88,0.148],[0.078,0.877,0.146],[0.077,0.874,0.145],[0.078,0.872,0.143],[0.078,0.87,0.139],[0.079,0.869,0.135],[0.08,0.866,0.13],[0.081,0.864,0.126],[0.083,0.865,0.123],[0.085,0.869,0.122],[0.086,0.877,0.122],[0.087,0.886,0.123],[0.088,0.895,0.124],[0.088,0.902,0.124],[0.089,0.908,0.123],[0.09,0.912,0.121],[0.091,0.914,0.119],[0.092,0.914,0.117],[0.093,0.912,0.117],[0.095,0.909,0.116],[0.098,0.905,0.117],[0.101,0.9,0.117],[0.104,0.895,0.118],[0.106,0.891,0.119],[0.108,0.888,0.12],[0.109,0.883,0.108],[0.109,0.881,0.109]],"L.ASIS":[[0.078,0.875,-0.149],[0.078,0.873,-0.147],[0.08,0.872,-0.143],[0.081,0.871,-0.138],[0.082,0.869,-0.133],[0.083,0.868,-0.129],[0.085,0.868,-0.125],[0.087,0.871,-0.122],[0.089,0.876,-0.121],[0.09,0.882,-0.121],[0.092,0.889,-0.121],[0.092,0.896,-0.122],[0.093,0.901,-0.121],[0.093,0.905,-0.119],[0.094,0.907,-0.117],[0.095,0.907,-0.115],[0.096,0.906,-0.114],[0.097,0.903,-0.113],[0.099,0.899,-0.112],[0.102,0.895,-0.111],[0.105,0.892,-0.111],[0.108,0.889,-0.112],[0.109,0.886,-0.112],[0.111,0.884,-0.113],[0.111,0.882,-0.113],[0.111,0.881,-0.114],[0.11,0.882,-0.115],[0.109,0.885,-0.117],[0.108,0.889,-0.119],[0.107,0.894,-0.121],[0.106,0.899,-0.124],[0.105,0.903,-0.127],[0.104,0.907,-0.13],[0.103,0.911,-0.133],[0.103,0.915,-0.135],[0.102,0.918,-0.136],[0.101,0.921,-0.136],[0.1,0.922,-0.136],[0.099,0.921,-0.136],[0.097,0.919,-0.136],[0.096,0.916,-0.136],[0.094,0.912,-0.137],[0.091,0.908,-0.137],[0.089,0.903,-0.137],[0.087,0.898,-0.138],[0.085,0.894,-0.14],[0.083,0.889,-0.141],[0.082,0.885,-0.141],[0.079,0.88,-0.152],[0.078,0.878,-0.151]],"R.PSIS":[[-0.088,0.919,0.054],[-0.087,0.92,0.055],[-0.088,0.923,0.056],[-0.089,0.925,0.057],[-0.09,0.928,0.055],[-0.091,0.93,0.053],[-0.092,0.933,0.051],[-0.094,0.936,0.05],[-0.094,0.94,0.05],[-0.094,0.944,0.051],[-0.094,0.949,0.053],[-0.093,0.953,0.055],[-0.093,0.957,0.057],[-0.093,0.96,0.057],[-0.093,0.961,0.057],[-0.093,0.961,0.056],[-0.094,0.96,0.053],[-0.095,0.956,0.05],[-0.096,0.952,0.045],[-0.097,0.947,0.041],[-0.098,0.942,0.037],[-0.098,0.937,0.032],[-0.099,0.933,0.029],[-0.1,0.93,0.025],[-0.1,0.927,0.023],[-0.099,0.925,0.023],[-0.099,0.924,0.023],[-0.098,0.923,0.025],[-0.097,0.922,0.028],[-0.097,0.92,0.032],[-0.096,0.919,0.034],[-0.095,0.919,0.035],[-0.095,0.922,0.035],[-0.096,0.928,0.032],[-0.096,0.935,0.029],[-0.097,0.942,0.027],[-0.097,0.948,0.026],[-0.096,0.953,0.027],[-0.096,0.955,0.03],[-0.095,0.955,0.033],[-0.094,0.954,0.037],[-0.093,0.951,0.041],[-0.092,0.947,0.046],[-0.091,0.942,0.05],[-0.09,0.938,0.054],[-0.09,0.933,0.056],[-0.09,0.928,0.058],[-0.089,0.925,0.059],[-0.088,0.922,0.05],[-0.088,0.92,0.052]],"L.PSIS":[[-0.099,0.932,-0.028],[-0.099,0.932,-0.029],[-0.098,0.931,-0.031],[-0.098,0.931,-0.033],[-0.097,0.93,-0.037],[-0.096,0.929,-0.04],[-0.095,0.928,-0.042],[-0.094,0.93,-0.041],[-0.095,0.934,-0.038],[-0.095,0.939,-0.034],[-0.096,0.944,-0.031],[-0.096,0.949,-0.029],[-0.096,0.954,-0.029],[-0.096,0.957,-0.03],[-0.096,0.958,-0.032],[-0.095,0.957,-0.035],[-0.094,0.954,-0.038],[-0.092,0.951,-0.041],[-0.091,0.946,-0.045],[-0.091,0.942,-0.048],[-0.09,0.937,-0.051],[-0.09,0.932,-0.052],[-0.09,0.927,-0.052],[-0.09,0.924,-0.054],[-0.089,0.921,-0.056],[-0.089,0.919,-0.058],[-0.088,0.92,-0.06],[-0.089,0.923,-0.061],[-0.089,0.926,-0.061],[-0.09,0.929,-0.059],[-0.091,0.932,-0.058],[-0.092,0.935,-0.056],[-0.094,0.939,-0.054],[-0.094,0.944,-0.054],[-0.094,0.949,-0.055],[-0.093,0.954,-0.057],[-0.093,0.959,-0.058],[-0.093,0.962,-0.058],[-0.093,0.965,-0.058],[-0.093,0.966,-0.056],[-0.094,0.966,-0.054],[-0.094,0.964,-0.05],[-0.095,0.961,-0.046],[-0.096,0.957,-0.041],[-0.098,0.952,-0.036],[-0.099,0.947,-0.031],[-0.1,0.943,-0.027],[-0.1,0.939,-0.023],[-0.1,0.937,-0.03],[-0.1,0.934,-0.028]],"R.IC":[[0.033,0.961,0.157],[0.035,0.962,0.159],[0.039,0.965,0.162],[0.042,0.97,0.163],[0.042,0.976,0.163],[0.04,0.983,0.162],[0.035,0.988,0.161],[0.029,0.992,0.163],[0.022,0.994,0.166],[0.016,0.996,0.169],[0.012,0.998,0.172],[0.013,1.001,0.173],[0.017,1.004,0.173],[0.022,1.006,0.173],[0.027,1.006,0.172],[0.03,1.005,0.171],[0.031,1.002,0.171],[0.029,0.997,0.171],[0.025,0.991,0.172],[0.019,0.983,0.172],[0.012,0.976,0.171],[0.006,0.969,0.169],[0.0,0.964,0.166],[-0.004,0.961,0.164],[-0.005,0.96,0.162],[-0.004,0.959,0.161],[0.0,0.959,0.161],[0.007,0.957,0.162],[0.015,0.956,0.163],[0.021,0.954,0.163],[0.023,0.951,0.161],[0.022,0.951,0.159],[0.017,0.954,0.158],[0.013,0.96,0.157],[0.009,0.967,0.156],[0.006,0.975,0.155],[0.006,0.982,0.154],[0.008,0.989,0.152],[0.012,0.994,0.152],[0.016,0.997,0.153],[0.021,0.998,0.154],[0.025,0.996,0.156],[0.027,0.993,0.158],[0.028,0.988,0.16],[0.028,0.981,0.161],[0.027,0.975,0.163],[0.027,0.969,0.164],[0.028,0.966,0.166],[0.031,0.963,0.155],[0.032,0.962,0.156]],"L.IC":[[-0.01,0.953,-0.175],[-0.005,0.953,-0.174],[0.002,0.953,-0.175],[0.01,0.952,-0.177],[0.017,0.949,-0.176],[0.021,0.946,-0.174],[0.021,0.944,-0.172],[0.017,0.945,-0.17],[0.013,0.948,-0.169],[0.008,0.954,-0.168],[0.005,0.96,-0.166],[0.004,0.968,-0.163],[0.006,0.974,-0.161],[0.01,0.979,-0.159],[0.014,0.983,-0.16],[0.02,0.984,-0.161],[0.024,0.983,-0.163],[0.026,0.98,-0.164],[0.027,0.975,-0.165],[0.027,0.97,-0.166],[0.026,0.963,-0.166],[0.026,0.958,-0.167],[0.027,0.956,-0.168],[0.027,0.954,-0.168],[0.028,0.953,-0.169],[0.029,0.952,-0.17],[0.032,0.953,-0.172],[0.036,0.955,-0.175],[0.038,0.961,-0.176],[0.039,0.969,-0.175],[0.038,0.976,-0.174],[0.034,0.981,-0.173],[0.029,0.985,-0.174],[0.024,0.987,-0.177],[0.019,0.988,-0.179],[0.015,0.99,-0.181],[0.015,0.993,-0.182],[0.017,0.996,-0.181],[0.021,0.999,-0.18],[0.024,1.0,-0.179],[0.027,0.999,-0.178],[0.026,0.995,-0.177],[0.024,0.989,-0.177],[0.019,0.982,-0.178],[0.012,0.975,-0.177],[0.005,0.967,-0.175],[-0.002,0.961,-0.173],[-0.008,0.956,-0.17],[-0.011,0.953,-0.18],[-0.012,0.953,-0.177]],"R.GTR":[[0.061,0.785,0.189],[0.061,0.785,0.193],[0.061,0.787,0.197],[0.061,0.794,0.2],[0.059,0.802,0.203],[0.055,0.808,0.206],[0.051,0.812,0.209],[0.048,0.816,0.212],[0.044,0.818,0.213],[0.041,0.82,0.213],[0.039,0.822,0.213],[0.035,0.823,0.213],[0.031,0.824,0.213],[0.026,0.824,0.213],[0.022,0.823,0.212],[0.017,0.82,0.211],[0.013,0.818,0.21],[0.008,0.815,0.209],[0.002,0.812,0.208],[-0.005,0.809,0.206],[-0.01,0.806,0.204],[-0.015,0.804,0.202],[-0.018,0.802,0.2],[-0.02,0.798,0.198],[-0.022,0.795,0.197],[-0.024,0.792,0.195],[-0.023,0.788,0.193],[-0.02,0.784,0.192],[-0.015,0.778,0.19],[-0.01,0.771,0.187],[-0.004,0.766,0.185],[0.002,0.765,0.183],[0.004,0.769,0.18],[0.006,0.776,0.177],[0.008,0.784,0.176],[0.01,0.79,0.176],[0.013,0.798,0.176],[0.017,0.804,0.178],[0.022,0.809,0.18],[0.028,0.812,0.183],[0.033,0.814,0.186],[0.038,0.813,0.19],[0.043,0.811,0.193],[0.047,0.807,0.195],[0.052,0.802,0.196],[0.055,0.797,0.196],[0.058,0.792,0.196],[0.059,0.789,0.197],[0.062,0.785,0.186],[0.062,0.785,0.188]],"L.GTR":[[-0.018,0.809,-0.206],[-0.016,0.806,-0.205],[-0.012,0.802,-0.204],[-0.006,0.798,-0.202],[0.0,0.792,-0.2],[0.006,0.787,-0.197],[0.012,0.786,-0.194],[0.015,0.788,-0.191],[0.017,0.792,-0.188],[0.018,0.798,-0.186],[0.019,0.804,-0.185],[0.021,0.81,-0.184],[0.024,0.816,-0.184],[0.027,0.82,-0.186],[0.031,0.823,-0.188],[0.035,0.825,-0.19],[0.04,0.825,-0.192],[0.045,0.824,-0.194],[0.049,0.82,-0.195],[0.053,0.816,-0.196],[0.058,0.812,-0.196],[0.061,0.807,-0.195],[0.064,0.804,-0.196],[0.067,0.803,-0.197],[0.068,0.802,-0.198],[0.068,0.801,-0.2],[0.069,0.802,-0.204],[0.07,0.806,-0.207],[0.07,0.813,-0.209],[0.068,0.82,-0.212],[0.065,0.827,-0.214],[0.061,0.831,-0.217],[0.057,0.834,-0.218],[0.054,0.837,-0.219],[0.051,0.838,-0.219],[0.048,0.84,-0.218],[0.044,0.841,-0.218],[0.04,0.842,-0.218],[0.035,0.842,-0.217],[0.03,0.841,-0.216],[0.025,0.839,-0.214],[0.02,0.836,-0.213],[0.014,0.833,-0.211],[0.008,0.83,-0.209],[0.001,0.827,-0.206],[-0.004,0.824,-0.204],[-0.008,0.821,-0.202],[-0.01,0.819,-0.2],[-0.016,0.816,-0.21],[-0.017,0.813,-0.208]],"R.Knee":[[0.205,0.451,0.103],[0.196,0.448,0.103],[0.19,0.451,0.106],[0.187,0.457,0.107],[0.185,0.459,0.108],[0.177,0.458,0.109],[0.162,0.457,0.111],[0.145,0.457,0.112],[0.126,0.456,0.112],[0.108,0.455,0.113],[0.088,0.455,0.113],[0.068,0.455,0.113],[0.047,0.455,0.113],[0.027,0.455,0.113],[0.007,0.454,0.111],[-0.012,0.453,0.11],[-0.029,0.453,0.109],[-0.045,0.452,0.108],[-0.059,0.451,0.106],[-0.073,0.45,0.105],[-0.086,0.449,0.105],[-0.097,0.449,0.105],[-0.107,0.449,0.105],[-0.115,0.448,0.105],[-0.121,0.447,0.105],[-0.122,0.444,0.104],[-0.116,0.44,0.103],[-0.101,0.435,0.105],[-0.082,0.427,0.108],[-0.061,0.42,0.112],[-0.038,0.417,0.115],[-0.013,0.418,0.117],[0.015,0.422,0.119],[0.043,0.428,0.119],[0.071,0.436,0.119],[0.095,0.445,0.118],[0.117,0.454,0.117],[0.137,0.463,0.116],[0.155,0.47,0.115],[0.17,0.476,0.114],[0.183,0.479,0.114],[0.194,0.481,0.113],[0.202,0.48,0.113],[0.207,0.477,0.113],[0.209,0.471,0.113],[0.209,0.466,0.114],[0.209,0.461,0.116],[0.211,0.457,0.117],[0.215,0.456,0.105],[0.212,0.454,0.104]],"L.Knee":[[-0.117,0.44,-0.132],[-0.11,0.437,-0.13],[-0.095,0.434,-0.131],[-0.075,0.428,-0.134],[-0.054,0.422,-0.137],[-0.031,0.419,-0.139],[-0.006,0.42,-0.139],[0.022,0.424,-0.14],[0.05,0.428,-0.141],[0.079,0.434,-0.14],[0.105,0.442,-0.139],[0.128,0.45,-0.138],[0.149,0.458,-0.137],[0.167,0.465,-0.134],[0.182,0.471,-0.132],[0.195,0.475,-0.131],[0.204,0.477,-0.129],[0.21,0.476,-0.128],[0.213,0.473,-0.126],[0.215,0.467,-0.126],[0.218,0.462,-0.126],[0.222,0.459,-0.127],[0.227,0.458,-0.126],[0.229,0.456,-0.125],[0.228,0.455,-0.124],[0.223,0.451,-0.123],[0.216,0.449,-0.125],[0.21,0.453,-0.127],[0.207,0.457,-0.128],[0.203,0.458,-0.128],[0.193,0.457,-0.128],[0.176,0.456,-0.128],[0.158,0.455,-0.129],[0.139,0.454,-0.128],[0.121,0.453,-0.128],[0.101,0.453,-0.128],[0.079,0.453,-0.128],[0.057,0.453,-0.128],[0.036,0.453,-0.127],[0.016,0.452,-0.126],[-0.003,0.452,-0.125],[-0.02,0.451,-0.124],[-0.037,0.449,-0.123],[-0.052,0.448,-0.122],[-0.067,0.447,-0.121],[-0.081,0.447,-0.121],[-0.092,0.446,-0.121],[-0.102,0.446,-0.121],[-0.114,0.445,-0.134],[-0.117,0.443,-0.133]],"R.Ankle":[[0.298,0.067,0.077],[0.278,0.067,0.078],[0.252,0.065,0.078],[0.227,0.066,0.078],[0.2,0.066,0.077],[0.173,0.066,0.076],[0.146,0.066,0.076],[0.119,0.066,0.075],[0.092,0.066,0.075],[0.065,0.066,0.075],[0.038,0.066,0.074],[0.012,0.067,0.074],[-0.015,0.067,0.073],[-0.042,0.068,0.072],[-0.069,0.069,0.071],[-0.096,0.07,0.069],[-0.122,0.072,0.066],[-0.149,0.074,0.064],[-0.176,0.077,0.061],[-0.203,0.08,0.06],[-0.229,0.084,0.061],[-0.254,0.089,0.064],[-0.28,0.095,0.066],[-0.305,0.103,0.069],[-0.33,0.112,0.071],[-0.353,0.124,0.073],[-0.369,0.138,0.075],[-0.375,0.152,0.077],[-0.371,0.166,0.081],[-0.36,0.182,0.083],[-0.345,0.196,0.081],[-0.322,0.208,0.078],[-0.293,0.214,0.075],[-0.261,0.216,0.073],[-0.226,0.213,0.071],[-0.189,0.205,0.07],[-0.15,0.193,0.07],[-0.109,0.178,0.07],[-0.064,0.161,0.071],[-0.017,0.142,0.072],[0.033,0.124,0.075],[0.086,0.107,0.078],[0.142,0.092,0.081],[0.197,0.083,0.086],[0.249,0.079,0.09],[0.292,0.081,0.093],[0.323,0.085,0.095],[0.338,0.086,0.095],[0.339,0.082,0.081],[0.324,0.075,0.079]],"L.Ankle":[[-0.346,0.116,-0.105],[-0.363,0.13,-0.107],[-0.369,0.145,-0.11],[-0.365,0.159,-0.113],[-0.354,0.175,-0.115],[-0.34,0.191,-0.113],[-0.319,0.203,-0.109],[-0.291,0.21,-0.105],[-0.259,0.211,-0.103],[-0.223,0.207,-0.101],[-0.185,0.197,-0.099],[-0.144,0.184,-0.097],[-0.1,0.168,-0.095],[-0.054,0.151,-0.093],[-0.004,0.132,-0.091],[0.048,0.114,-0.09],[0.104,0.098,-0.09],[0.161,0.085,-0.091],[0.218,0.077,-0.093],[0.269,0.075,-0.095],[0.309,0.078,-0.097],[0.336,0.081,-0.099],[0.349,0.081,-0.098],[0.347,0.076,-0.097],[0.33,0.068,-0.095],[0.305,0.061,-0.095],[0.286,0.061,-0.096],[0.258,0.059,-0.097],[0.231,0.06,-0.096],[0.204,0.059,-0.095],[0.176,0.06,-0.095],[0.149,0.06,-0.094],[0.123,0.06,-0.094],[0.096,0.06,-0.093],[0.07,0.06,-0.093],[0.044,0.06,-0.093],[0.018,0.061,-0.093],[-0.008,0.061,-0.092],[-0.034,0.062,-0.091],[-0.059,0.063,-0.089],[-0.085,0.065,-0.087],[-0.112,0.066,-0.085],[-0.138,0.068,-0.083],[-0.165,0.07,-0.082],[-0.191,0.073,-0.081],[-0.217,0.076,-0.081],[-0.242,0.081,-0.083],[-0.267,0.086,-0.085],[-0.3,0.095,-0.101],[-0.324,0.105,-0.103]],"R.Heel":[[0.266,0.034,0.034],[0.241,0.038,0.036],[0.213,0.04,0.037],[0.185,0.041,0.038],[0.157,0.042,0.037],[0.129,0.042,0.037],[0.101,0.043,0.037],[0.074,0.043,0.036],[0.047,0.043,0.036],[0.02,0.043,0.036],[-0.007,0.044,0.036],[-0.034,0.044,0.036],[-0.061,0.045,0.035],[-0.088,0.046,0.034],[-0.115,0.048,0.033],[-0.142,0.049,0.031],[-0.169,0.051,0.028],[-0.195,0.054,0.025],[-0.222,0.058,0.022],[-0.249,0.063,0.021],[-0.276,0.069,0.023],[-0.302,0.076,0.025],[-0.329,0.085,0.028],[-0.354,0.096,0.03],[-0.378,0.11,0.031],[-0.399,0.126,0.031],[-0.41,0.146,0.032],[-0.412,0.166,0.032],[-0.405,0.187,0.036],[-0.393,0.205,0.038],[-0.376,0.22,0.036],[-0.351,0.229,0.03],[-0.323,0.234,0.026],[-0.292,0.233,0.023],[-0.26,0.228,0.022],[-0.225,0.217,0.02],[-0.188,0.201,0.02],[-0.149,0.182,0.02],[-0.105,0.159,0.021],[-0.058,0.135,0.023],[-0.007,0.111,0.025],[0.048,0.089,0.029],[0.105,0.07,0.033],[0.162,0.056,0.038],[0.215,0.048,0.044],[0.26,0.046,0.049],[0.292,0.046,0.052],[0.308,0.046,0.053],[0.31,0.043,0.038],[0.294,0.036,0.035]],"L.Heel":[[-0.394,0.127,-0.07],[-0.405,0.147,-0.07],[-0.405,0.168,-0.072],[-0.396,0.189,-0.075],[-0.382,0.208,-0.077],[-0.365,0.223,-0.073],[-0.343,0.233,-0.067],[-0.316,0.238,-0.062],[-0.286,0.237,-0.059],[-0.254,0.231,-0.057],[-0.22,0.219,-0.056],[-0.183,0.203,-0.055],[-0.142,0.182,-0.052],[-0.096,0.158,-0.049],[-0.047,0.134,-0.046],[0.007,0.109,-0.044],[0.064,0.086,-0.043],[0.123,0.068,-0.044],[0.18,0.056,-0.048],[0.231,0.049,-0.052],[0.272,0.048,-0.057],[0.3,0.048,-0.059],[0.313,0.046,-0.06],[0.31,0.042,-0.059],[0.292,0.036,-0.057],[0.266,0.036,-0.057],[0.241,0.039,-0.059],[0.213,0.041,-0.061],[0.185,0.042,-0.061],[0.157,0.042,-0.061],[0.128,0.043,-0.06],[0.101,0.043,-0.06],[0.074,0.043,-0.06],[0.048,0.044,-0.059],[0.022,0.044,-0.059],[-0.005,0.044,-0.059],[-0.031,0.045,-0.059],[-0.057,0.046,-0.059],[-0.083,0.047,-0.058],[-0.109,0.049,-0.056],[-0.136,0.051,-0.054],[-0.162,0.053,-0.052],[-0.189,0.055,-0.05],[-0.215,0.059,-0.048],[-0.242,0.063,-0.048],[-0.268,0.068,-0.048],[-0.294,0.075,-0.05],[-0.319,0.084,-0.053],[-0.351,0.097,-0.068],[-0.375,0.111,-0.07]],"R.MT1":[[0.434,0.084,0.035],[0.415,0.069,0.035],[0.389,0.057,0.031],[0.364,0.051,0.03],[0.337,0.047,0.03],[0.31,0.044,0.029],[0.282,0.042,0.029],[0.255,0.042,0.029],[0.229,0.041,0.028],[0.202,0.041,0.028],[0.175,0.04,0.028],[0.148,0.04,0.028],[0.122,0.039,0.027],[0.095,0.038,0.026],[0.068,0.038,0.025],[0.041,0.037,0.025],[0.015,0.037,0.025],[-0.012,0.037,0.024],[-0.04,0.036,0.024],[-0.068,0.036,0.024],[-0.096,0.036,0.024],[-0.124,0.036,0.024],[-0.154,0.036,0.024],[-0.184,0.036,0.025],[-0.215,0.036,0.025],[-0.247,0.036,0.026],[-0.278,0.036,0.026],[-0.306,0.037,0.026],[-0.325,0.042,0.026],[-0.328,0.052,0.028],[-0.315,0.062,0.036],[-0.293,0.069,0.044],[-0.263,0.075,0.049],[-0.225,0.077,0.051],[-0.181,0.077,0.05],[-0.131,0.075,0.048],[-0.078,0.071,0.046],[-0.023,0.065,0.045],[0.035,0.061,0.045],[0.094,0.056,0.046],[0.155,0.054,0.049],[0.216,0.054,0.052],[0.277,0.058,0.055],[0.335,0.068,0.055],[0.387,0.081,0.054],[0.427,0.096,0.052],[0.456,0.109,0.049],[0.469,0.114,0.047],[0.471,0.113,0.035],[0.457,0.103,0.035]],"L.MT1":[[-0.248,0.036,-0.046],[-0.279,0.036,-0.047],[-0.308,0.036,-0.047],[-0.328,0.041,-0.049],[-0.335,0.052,-0.05],[-0.324,0.063,-0.058],[-0.299,0.071,-0.066],[-0.266,0.076,-0.07],[-0.226,0.079,-0.069],[-0.18,0.079,-0.065],[-0.129,0.076,-0.059],[-0.075,0.072,-0.055],[-0.018,0.067,-0.053],[0.043,0.062,-0.055],[0.105,0.057,-0.058],[0.168,0.055,-0.062],[0.232,0.057,-0.065],[0.294,0.063,-0.066],[0.351,0.074,-0.063],[0.4,0.087,-0.058],[0.437,0.101,-0.053],[0.462,0.11,-0.049],[0.473,0.113,-0.047],[0.471,0.109,-0.045],[0.455,0.097,-0.043],[0.434,0.078,-0.043],[0.415,0.065,-0.041],[0.386,0.055,-0.037],[0.36,0.05,-0.038],[0.332,0.047,-0.036],[0.305,0.045,-0.036],[0.278,0.044,-0.035],[0.251,0.043,-0.035],[0.225,0.042,-0.034],[0.199,0.042,-0.034],[0.173,0.042,-0.034],[0.147,0.041,-0.033],[0.121,0.041,-0.033],[0.095,0.04,-0.032],[0.07,0.04,-0.031],[0.044,0.039,-0.03],[0.018,0.038,-0.029],[-0.009,0.038,-0.029],[-0.035,0.038,-0.028],[-0.063,0.038,-0.028],[-0.09,0.037,-0.028],[-0.118,0.037,-0.027],[-0.147,0.037,-0.027],[-0.185,0.036,-0.045],[-0.216,0.036,-0.045]],"R.MT5":[[0.413,0.061,0.086],[0.391,0.046,0.084],[0.365,0.036,0.082],[0.339,0.032,0.083],[0.312,0.03,0.085],[0.285,0.029,0.085],[0.257,0.029,0.085],[0.23,0.028,0.085],[0.203,0.028,0.085],[0.177,0.028,0.085],[0.15,0.028,0.086],[0.123,0.028,0.086],[0.095,0.028,0.086],[0.068,0.028,0.086],[0.041,0.028,0.085],[0.013,0.028,0.084],[-0.015,0.028,0.084],[-0.043,0.029,0.082],[-0.072,0.029,0.081],[-0.1,0.029,0.081],[-0.128,0.029,0.081],[-0.156,0.029,0.082],[-0.185,0.029,0.082],[-0.215,0.029,0.083],[-0.247,0.03,0.083],[-0.279,0.031,0.083],[-0.309,0.032,0.083],[-0.335,0.037,0.083],[-0.35,0.047,0.084],[-0.351,0.061,0.086],[-0.34,0.076,0.091],[-0.32,0.089,0.096],[-0.29,0.097,0.099],[-0.252,0.101,0.1],[-0.209,0.099,0.099],[-0.161,0.094,0.097],[-0.109,0.087,0.095],[-0.055,0.078,0.094],[0.002,0.068,0.094],[0.06,0.059,0.096],[0.12,0.052,0.098],[0.182,0.048,0.101],[0.245,0.048,0.104],[0.305,0.054,0.106],[0.361,0.064,0.105],[0.406,0.076,0.104],[0.438,0.087,0.102],[0.453,0.092,0.1],[0.454,0.09,0.088],[0.439,0.08,0.087]],"L.MT5":[[-0.273,0.028,-0.11],[-0.303,0.029,-0.11],[-0.33,0.032,-0.11],[-0.35,0.041,-0.111],[-0.353,0.057,-0.112],[-0.345,0.073,-0.118],[-0.324,0.086,-0.123],[-0.292,0.095,-0.125],[-0.253,0.097,-0.123],[-0.207,0.094,-0.119],[-0.157,0.088,-0.115],[-0.103,0.08,-0.111],[-0.046,0.071,-0.109],[0.013,0.063,-0.11],[0.073,0.056,-0.112],[0.135,0.05,-0.115],[0.198,0.047,-0.117],[0.262,0.049,-0.118],[0.323,0.056,-0.116],[0.377,0.066,-0.112],[0.419,0.078,-0.109],[0.446,0.087,-0.106],[0.459,0.089,-0.103],[0.457,0.085,-0.101],[0.44,0.073,-0.099],[0.417,0.053,-0.098],[0.395,0.039,-0.095],[0.369,0.032,-0.093],[0.342,0.029,-0.095],[0.314,0.027,-0.096],[0.287,0.027,-0.097],[0.26,0.027,-0.097],[0.233,0.026,-0.097],[0.207,0.026,-0.097],[0.181,0.026,-0.097],[0.155,0.026,-0.097],[0.128,0.026,-0.097],[0.102,0.026,-0.097],[0.076,0.026,-0.096],[0.049,0.026,-0.096],[0.022,0.027,-0.095],[-0.005,0.027,-0.094],[-0.032,0.027,-0.093],[-0.06,0.027,-0.092],[-0.088,0.027,-0.091],[-0.115,0.028,-0.091],[-0.143,0.028,-0.091],[-0.171,0.028,-0.091],[-0.21,0.027,-0.109],[-0.241,0.028,-0.109]]}},
+POW:{ankle:[0.01,0.01,-0.04,-0.18,-0.37,-0.40,-0.23,0.03,0.22,0.28,0.24,0.16,0.08,0.03,-0.01,-0.03,-0.04,-0.06,-0.07,-0.09,-0.11,-0.11,-0.11,-0.10,-0.09,-0.09,-0.11,-0.14,-0.18,-0.22,-0.26,-0.29,-0.33,-0.38,-0.44,-0.48,-0.51,-0.50,-0.45,-0.37,-0.26,-0.12,0.05,0.25,0.49,0.78,1.11,1.49,1.90,2.31,2.70,3.05,3.33,3.49,3.42,2.96,2.11,1.13,0.37,-0.06,-0.11,-0.04,0.01,0.04,0.06,0.06,0.05,0.05,0.04,0.04,0.04,0.04,0.03,0.03,0.03,0.03,0.03,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.01,0.01,0.01,0.00,-0.00,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.00,0.00,-0.00,-0.00,-0.00],knee:[0.45,0.42,0.35,0.20,0.05,-0.09,-0.29,-0.62,-1.00,-1.30,-1.38,-1.22,-0.84,-0.36,0.08,0.40,0.58,0.66,0.67,0.66,0.65,0.63,0.60,0.53,0.43,0.32,0.20,0.09,0.00,-0.06,-0.11,-0.14,-0.15,-0.15,-0.14,-0.12,-0.09,-0.05,-0.02,0.01,0.05,0.08,0.12,0.15,0.18,0.21,0.23,0.22,0.19,0.11,-0.01,-0.17,-0.36,-0.59,-0.82,-0.99,-1.03,-0.88,-0.60,-0.29,-0.20,-0.29,-0.42,-0.53,-0.55,-0.51,-0.43,-0.33,-0.25,-0.18,-0.11,-0.07,-0.03,-0.00,0.01,0.02,0.02,0.01,-0.01,-0.03,-0.06,-0.10,-0.14,-0.19,-0.25,-0.32,-0.41,-0.53,-0.69,-0.90,-1.13,-1.32,-1.45,-1.46,-1.34,-1.13,-0.85,-0.51,-0.16,0.01],hip:[0.30,0.40,0.58,0.72,0.76,0.73,0.64,0.52,0.44,0.43,0.50,0.65,0.85,1.04,1.18,1.22,1.15,1.01,0.86,0.73,0.63,0.58,0.54,0.49,0.43,0.34,0.25,0.16,0.07,-0.00,-0.06,-0.11,-0.14,-0.16,-0.17,-0.18,-0.21,-0.25,-0.29,-0.35,-0.43,-0.52,-0.61,-0.69,-0.76,-0.80,-0.80,-0.76,-0.66,-0.52,-0.34,-0.12,0.10,0.34,0.58,0.81,0.99,1.03,0.93,0.81,0.76,0.81,0.97,1.15,1.28,1.34,1.30,1.16,0.95,0.70,0.47,0.27,0.13,0.05,0.01,-0.00,0.00,0.01,0.01,0.00,-0.01,-0.01,-0.03,-0.04,-0.05,-0.06,-0.06,-0.05,-0.04,-0.03,0.01,0.06,0.11,0.16,0.18,0.17,0.14,0.10,0.07,0.06]}}
+};
+const FAM=['S','C','F'];
+const KEY=(()=>{const q=new URLSearchParams(location.search).get('d');if(q&&DS[q])return q;try{const v=localStorage.getItem('cms-ds2');if(v&&DS[v])return v;}catch(e){}return 'C';})();
+const CUR=DS[KEY];
+const NODES=CUR.NODES, MOM_ANKLE=CUR.MA, MOM_KNEE=CUR.MK, MOM_HIP=CUR.MH, GRF_V=CUR.GV, GRF_AP=CUR.GA, POW_LAB=CUR.POW;
+function makeCR(y){ const N=y.length,h=100/N;
+  return x=>{ x=((x%100)+100)%100; const i=Math.floor(x/h)%N,t=(x-i*h)/h,t2=t*t,t3=t2*t;
+    const y0=y[(i-1+N)%N],y1=y[i],y2=y[(i+1)%N],y3=y[(i+2)%N],m1=(y2-y0)/2,m2=(y3-y1)/2;
+    return (2*t3-3*t2+1)*y1+(t3-2*t2+t)*m1+(-2*t3+3*t2)*y2+(t3-t2)*m2; }; }
+function makeLin(a){ const N=a.length; return x=>{ x=((x%100)+100)%100*N/100; const i=Math.floor(x)%N,t=x-Math.floor(x); return a[i]*(1-t)+a[(i+1)%N]*t; }; }
+function makePchip(pts){
+  const P=[];for(const o of [-100,0,100]) for(const [x,y] of pts) P.push([x+o,y]);
+  const n=P.length,h=[],d=[],m=new Array(n).fill(0);
+  for(let i=0;i<n-1;i++){h[i]=P[i+1][0]-P[i][0];d[i]=(P[i+1][1]-P[i][1])/h[i];}
+  for(let i=1;i<n-1;i++){ if(d[i-1]*d[i]<=0) m[i]=0; else{const w1=2*h[i]+h[i-1],w2=h[i]+2*h[i-1];m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i]);} }
+  return x=>{ x=((x%100)+100)%100; let i=0; while(!(P[i][0]<=x&&x<P[i+1][0])) i++;
+    const t=(x-P[i][0])/h[i],t2=t*t,t3=t2*t;
+    return (2*t3-3*t2+1)*P[i][1]+(t3-2*t2+t)*h[i]*m[i]+(-2*t3+3*t2)*P[i+1][1]+(t3-t2)*h[i]*m[i+1]; }; }
+const F={}; for(const k in NODES) F[k]=makeCR(NODES[k]);
+F.mAnkle=makeLin(MOM_ANKLE); F.mHip=makeLin(MOM_HIP); F.mKnee=makeLin(MOM_KNEE);
+/* Potencia = momento interno × velocidad angular en el sentido del momento.
+   Tobillo: momento plantiflexor × velocidad de flexión plantar (−dθ/dt, con dorsiflexión positiva).
+   Rodilla y cadera: momento extensor × velocidad de extensión (−dθ/dt, con flexión positiva). */
+const T=CUR.T, D2R=Math.PI/180;
+const omega=k=>x=>-(F[k](x+0.05)-F[k](x-0.05))/0.1*(100/T)*D2R;   // rad/s
+const W={ankle:omega('ankle'),knee:omega('knee'),hip:omega('hip')};
+/* Potencia: la del laboratorio (dinámica inversa del mismo sujeto). M×ω de la figura se conserva como comprobación. */
+F.pAnkle=makeLin(POW_LAB.ankle); F.pKnee=makeLin(POW_LAB.knee); F.pHip=makeLin(POW_LAB.hip);
+const pMW={ankle:x=>F.mAnkle(x)*W.ankle(x),knee:x=>F.mKnee(x)*W.knee(x),hip:x=>F.mHip(x)*W.hip(x)};
+/* planos frontal y transverso (solo base WBDS): ángulos, momentos frontales, FRP mediolateral y marcadores */
+const HAS3=!!CUR.P3;
+function p3funcs(P){ const G={}; for(const k of ['pObl','pRot','hAdd','hRot','fpa','mHipF','mKneeF','gML','gMLL']) G[k]=makeLin(P[k]); return G; }
+if(HAS3) Object.assign(F,p3funcs(CUR.P3));
+const MK3=HAS3?CUR.P3.mk:null;
+function mkAt(n,x){ const a=MK3[n],N=a.length; x=((x%100)+100)%100*N/100; const i=Math.floor(x)%N,t=x-Math.floor(x),p=a[i],q=a[(i+1)%N];
+  return [p[0]*(1-t)+q[0]*t,p[1]*(1-t)+q[1]*t,p[2]*(1-t)+q[2]*t]; }
+const G0=HAS3?Math.min(...['R.Heel','L.Heel','R.MT1','L.MT1','R.MT5','L.MT5'].flatMap(n=>MK3[n].map(p=>p[1])))-0.012:0;
+/* las otras velocidades del mismo sujeto, para dibujarlas en gris en las gráficas */
+const GH=FAM.includes(KEY)?FAM.filter(k=>k!==KEY):[];
+const GF={}; for(const g of GH){ const D=DS[g], G={}; for(const k in D.NODES) G[k]=makeCR(D.NODES[k]);
+  G.mAnkle=makeLin(D.MA); G.mKnee=makeLin(D.MK); G.mHip=makeLin(D.MH); G.grfV=makeLin(D.GV); G.grfAP=makeLin(D.GA);
+  G.pAnkle=makeLin(D.POW.ankle); G.pKnee=makeLin(D.POW.knee); G.pHip=makeLin(D.POW.hip); if(D.P3) Object.assign(G,p3funcs(D.P3)); GF[g]=G; }
+
+/* ---------- modelo geométrico ---------- */
+const rad=d=>d*D2R;
+const FL=0.161, FH=0.041, HEELF=0.19, MTPF=0.55, TOEF=0.26;   // pie: longitud, altura del tobillo; talón, cabezas de los metatarsianos y dedos en fracciones de FL
+const FF=CUR.FF, HR=CUR.HR, TO=CUR.TO;
+function legBase(x,u){
+  const tilt=F.pelvis(x), th=rad(F.hip(x)-tilt), ts=th-rad(F.knee(x)), ps=ts+rad(F.ankle(x));
+  const Lt=u*0.26,Ls=u*0.26,Lf=u*FL,h=u*FH;
+  const K={x:Math.sin(th)*Lt,y:Math.cos(th)*Lt};
+  const A={x:K.x+Math.sin(ts)*Ls,y:K.y+Math.cos(ts)*Ls};
+  const f={x:Math.cos(ps),y:-Math.sin(ps)}, n={x:Math.sin(ps),y:Math.cos(ps)};
+  const heel={x:A.x-HEELF*Lf*f.x+h*n.x,y:A.y-HEELF*Lf*f.y+h*n.y};
+  const mtp={x:A.x+MTPF*Lf*f.x+h*n.x,y:A.y+MTPF*Lf*f.y+h*n.y};
+  return {th,ts,ps,K,A,heel,mtp,f,Lt,Ls,Lf}; }
+const sm=t=>{t=Math.min(1,Math.max(0,t));return 3*t*t-2*t*t*t;};
+const MU_TO=Math.max(0,-legBase(TO,1).ps/D2R), MU_SW=15;
+function muAt(x,ps){ x=((x%100)+100)%100; if(x>=HR&&x<=TO) return Math.max(0,-ps/D2R);
+  if(x<HR) return 0; return (MU_TO+(MU_SW-MU_TO)*sm((x-TO)/12))*(1-sm((x-80)/17)); }
+function leg(x,u){ const L=legBase(x,u), mu=muAt(x,L.ps), pt=L.ps+rad(mu);
+  L.mu=mu; L.toe={x:L.mtp.x+TOEF*L.Lf*Math.cos(pt),y:L.mtp.y-TOEF*L.Lf*Math.sin(pt)}; return L; }
+
+const MTPW=(HEELF+MTPF)*FL;
+const STEP=MTPW-leg(50,1).mtp.x+leg(0,1).heel.x;
+function gR(x){const L=leg(x,1);return x<HR? -L.heel.x : MTPW-L.mtp.x;}
+function hipW(x){return x<50? gR(x) : STEP+gR(x-50);}
+function contactY(L){return Math.max(L.heel.y,L.mtp.y,L.toe.y);}
+
+/* ---------- fuerza de reacción del piso (esquemática) ---------- */
+const integ=(f,a,b)=>{let s=0;for(let x=a;x<b;x+=0.01)s+=f(x+0.005)*0.01;return s;};
+F.grfV=makeLin(GRF_V); F.grfAP=makeLin(GRF_AP);
+F.grfVL=x=>F.grfV(x+50); F.grfAPL=x=>F.grfAP(x+50);
+/* pie izquierdo medido, en su propio ciclo (como en el informe del laboratorio) */
+F.grfVLo=makeLin(CUR.GVL); F.grfAPLo=makeLin(CUR.GAL); F.grfVRo=makeLin(CUR.GVR); F.grfAPRo=makeLin(CUR.GAR); F.grfVsum=x=>F.grfV(x)+F.grfV(x+50);
+/* centro de presión: en el talón mientras solo él toca el suelo; con el pie plano, donde lo exige el momento
+   del tobillo de esta página (aproximación cuasiestática, limitado a la planta); en el antepié desde la elevación
+   del talón. Transiciones lineales de 4 % para que no salte. KL: metros por unidad de figura. */
+const KL=0.245*CUR.H/100/0.26, GG=9.81;   // metros por unidad de figura: muslo de 0,245 × talla
+function copQS(L,x,lo,hi){const V=F.grfV(x),a=F.grfAP(x),cy=contactY(L),A=L.A;
+  const c=(F.mAnkle(x)/(GG*KL)+A.x*V-(cy-A.y)*a)/Math.max(V,0.05);
+  return Math.min(Math.max(c,Math.min(lo,hi)),Math.max(lo,hi));}
+/* trayectoria del centro de presión, precalculada como fracción de la planta (talón 0, punta 1): parte del
+   valor cuasiestático, nunca retrocede, llega a las cabezas de los metatarsianos en la elevación del talón y se
+   suaviza; así la flecha avanza de forma continua del talón a los dedos. */
+const COPS=(function(){ const a=[]; let m=0;
+  for(let i=0;i<=200;i++){ const x=i/2, L=leg(x,1), h=L.heel.x, t=L.toe.x, mt=L.mtp.x;
+    if(x<FF){a.push(0);continue;}
+    let c=copQS(L,x,x<HR?h:mt,t);
+    c=Math.max(c, x<HR? h+(mt-h)*Math.min(1,(x-FF)/Math.max(HR-FF,1)) : mt);
+    let sv=(c-h)/(t-h); if(F.grfV(x)<0.15||x>TO) sv=m;
+    m=Math.max(m,sv); a.push(m); }
+  for(let k=0;k<3;k++){ const b=a.slice(); for(let i=2;i<=198;i++) a[i]=(b[i-2]+b[i-1]+b[i]+b[i+1]+b[i+2])/5; }
+  return a; })();
+function copOf(L,x){x=((x%100)+100)%100; const y=contactY(L), f=x*2, i=Math.min(199,Math.floor(f)), r=f-i;
+  const sv=COPS[i]*(1-r)+COPS[i+1]*r;
+  return {x:L.heel.x+sv*(L.toe.x-L.heel.x),y};}
+
+
+
+/* ---------- autocomprobación del contacto (u/1000) y de la potencia ---------- */
+const QA=(function(){ let ds=0,pen=0,flat=0,clr=1e9,Dmin=1e9,Dmax=-1e9;
+  for(let x=0;x<100;x+=0.1){ const R=leg(x,1000),L=leg(x+50,1000), g=x<50?contactY(R):contactY(L);
+    for(const p of [R.heel,R.toe,L.heel,L.toe]) pen=Math.max(pen,p.y-g);
+    for(const p of [R.mtp,L.mtp]) pen=Math.max(pen,p.y-g);
+    if(x<=TO-50){ ds=Math.max(ds,Math.abs(R.heel.y-L.mtp.y)); const D=R.heel.x-L.mtp.x; Dmin=Math.min(Dmin,D); Dmax=Math.max(Dmax,D); }
+    if(x>=FF&&x<=HR) flat=Math.max(flat,Math.abs(R.heel.y-R.mtp.y));
+    if(x>=TO-50+4&&x<=46) clr=Math.min(clr,g-L.heel.y,g-L.mtp.y,g-L.toe.y); }
+  let adj=80; for(let x=95;x>60;x-=0.1){ if(leg(x,1).A.x>leg(x+50,1).A.x)adj=x; }
+  let tv=87; for(let x=70;x<100;x+=0.1){ if(leg(x,1).ts>=0){tv=x;break;} }
+  let pz=0; for(let x=0;x<100;x+=0.1){ const d=Math.abs(pMW.ankle(x)-F.pAnkle(x)); if(x>40&&x<TO+2&&d>pz)pz=d; }
+  let gok=0,gn=0; for(let x=1;x<59;x+=0.5){ const L=leg(x,1),c=copOf(L,x),r=F.grfAP(x)/F.grfV(x);
+    const vk=(c.x+r*(c.y-L.K.y))-L.K.x, va=(c.x+r*(c.y-L.A.y))-L.A.x, mk=F.mKnee(x), ma=F.mAnkle(x);
+    if(Math.abs(mk)>0.08){gn++; if((vk<0)===(mk>0))gok++;} if(Math.abs(ma)>0.08){gn++; if((va>0)===(ma>0))gok++;} }
+  return {ds,pen,flat,slip:Dmax-Dmin,clr,adj,tv,pz,grf:100*gok/gn,vMean:integ(F.grfVsum,0,100)/100}; })();
+document.getElementById('qaGrf').textContent=fmt(QA.grf);
+document.getElementById('adjPct').textContent=fmt(QA.adj);
+document.querySelectorAll('.toTxt').forEach(e=>e.textContent=fmt(TO));
+document.getElementById('dcPct').textContent=fmt(TO-50); document.querySelectorAll('.dcTxt').forEach(e=>e.textContent=fmt(TO-50)); document.getElementById('ffPct').textContent=fmt(FF); document.getElementById('hrPct').textContent=fmt(HR);
+document.querySelectorAll('.ghostNote').forEach(e=>e.hidden=!GH.length);
+document.getElementById('opt1x').textContent=`1× (ciclo de ${fmt(T,2)} s)`;
+document.getElementById('srcTxt').textContent= KEY==='lab' ? 'Marcha de un adulto sano del laboratorio, en un modelo plano; no representa valores de referencia.'
+  : `Marcha de un adulto sano a velocidad ${CUR.label.toLowerCase()} (${fmt(CUR.v,2)} m/s; base pública WBDS), en un modelo plano; no representa valores de referencia.`;
+document.getElementById('powSrc').textContent= KEY==='lab' ? 'la del sujeto, medida en el laboratorio.' : 'momento del sujeto por la velocidad angular de sus propios datos, con su tiempo de zancada (la base no trae la potencia).';
+{ const box=document.getElementById('dsSel');
+  for(const k of ['lab','S','C','F']){ const b=document.createElement('button'); b.type='button';
+    b.textContent= k==='lab' ? 'Laboratorio' : `${DS[k].label} ${fmt(DS[k].v,1)} m/s`; b.setAttribute('aria-pressed',k===KEY);
+    b.onclick=()=>{ if(k===KEY) return; try{localStorage.setItem('cms-ds2',k);}catch(e){} const q=new URLSearchParams(location.search); q.set('d',k); location.search=q.toString(); };
+    box.appendChild(b); } }
+document.getElementById('tvPct').textContent=fmt(QA.tv);
+document.getElementById('muTO').textContent=fmt(MU_TO);
+document.getElementById('labA2').textContent=fmt(Math.max(...POW_LAB.ankle),1);
+{let mx=0;for(let x=40;x<62;x+=0.1)mx=Math.max(mx,pMW.ankle(x));document.getElementById('mwA2').textContent=fmt(mx,1);}
+document.getElementById('qa').textContent=`Revisión del contacto (u/1000; tolerancia 1): doble apoyo, diferencia de altura ${fmt(QA.ds,2)} · deslizamiento ${fmt(QA.slip,2)} · pie plano, desnivel ${fmt(QA.flat,2)} · penetración ${fmt(QA.pen,2)} · despeje mínimo ${fmt(QA.clr,1)}. Tobillo en el despegue: |M×ω de la figura − potencia de los datos| máx ${fmt(QA.pz,2)} W/kg. FRP: vertical media ${fmt(QA.vMean,3)} × peso; flecha coherente con el momento en rodilla y tobillo ${fmt(QA.grf)} %.`;
+
+/* ---------- eventos y fases (Perry 1992, caps. 1–2) ---------- */
+const EV=[
+  {p:0,k:'CI',n:'Contacto inicial'},{p:Math.round((TO-50)*2)/2,k:'DC',n:'Despegue contralateral'},{p:FF,k:'PP',n:'Pie plano (el antepié toca el suelo)'},{p:HR,k:'ET',n:'Elevación del talón'},
+  {p:50,k:'CC',n:'Contacto contralateral'},{p:Math.round(TO*2)/2,k:'D',n:'Despegue'},
+  {p:73,k:'73',n:'Fin del balanceo inicial (límite convencional de Perry)',conv:1},
+  {p:Math.round(QA.adj*2)/2,k:'TA',n:'Tobillos adyacentes (en este sujeto)'},
+  {p:87,k:'87',n:'Fin del balanceo medio (límite convencional de Perry: tibia vertical)',conv:1},
+  {p:Math.round(QA.tv*2)/2,k:'TV',n:'Tibia vertical (en este sujeto)'},{p:100,k:'CI',n:'Contacto inicial siguiente'}
+];
+const PCI={a:0,b:2,k:'CI',n:'Contacto inicial',
+  obj:'Colocar el miembro para iniciar el apoyo con la mecedora del talón.',
+  mov:'El talón toca el suelo con la cadera flexionada, la rodilla casi extendida y el tobillo cerca de neutro.',
+  mec:'El tibialis anterior sostiene el pie; los isquiotibiales y el gluteus maximus han frenado el avance del miembro al final del balanceo.',
+  q:'¿Por qué el contacto se hace con el talón y no con todo el pie?',
+  ans:'Porque el tobillo llega cerca de neutro y la rodilla casi extendida: el talón queda como punto más bajo y sobre él gira el pie (mecedora del talón), lo que conserva la progresión.'};
+const PH=[
+  {a:0,b:Math.round(TO-50),k:'RC',n:'Respuesta a la carga',
+   obj:'Absorber el choque, dar estabilidad en carga y conservar la progresión.',
+   mov:()=>`La rodilla se flexiona y el tobillo se plantiflexiona; el antepié toca el suelo hacia el ${fmt(FF)} % (pie plano). La fase termina con el despegue del otro pie.`,
+   mec:'El tibialis anterior frena el descenso del antepié; los vastos frenan la flexión de la rodilla; el gluteus maximus estabiliza la cadera y el tronco. En la rodilla hay absorción neta de potencia. La fuerza de reacción del piso pasa por detrás de la rodilla y del tobillo.',
+   q:'¿Por qué hay absorción de potencia mientras la rodilla se flexiona?',
+   ans:'Porque el momento interno es extensor y el movimiento es de flexión: el producto del momento por la velocidad angular es negativo. Los vastos frenan la flexión en lugar de producirla.'},
+  {a:Math.round(TO-50),b:HR,k:'AM',n:'Apoyo medio',
+   obj:'Avanzar el cuerpo sobre el pie apoyado manteniendo estable el miembro y el tronco.',
+   mov:'La tibia avanza sobre el pie estacionario (mecedora del tobillo) mientras la rodilla y la cadera se extienden.',
+   mec:'El soleus y el gastrocnemius regulan el avance de la tibia y contribuyen al soporte del cuerpo (Neptune et al., 2001).',
+   q:'¿Qué controla la velocidad con que avanza la tibia?',
+   ans:'El momento plantiflexor del soleus y del gastrocnemius. Sin él, la tibia avanzaría demasiado rápido y la rodilla se flexionaría.'},
+  {a:HR,b:50,k:'AT',n:'Apoyo terminal',
+   obj:'Llevar el cuerpo por delante del pie de apoyo.',
+   mov:()=>`El talón se eleva y el miembro avanza sobre el antepié. El tobillo alcanza su dorsiflexión máxima hacia el ${fmt(EXT.ankleMax.x)} %, la rodilla su menor flexión del apoyo y la cadera su extensión máxima al final de la fase.`,
+   mec:'El complejo plantiflexor contribuye al soporte y a la progresión. El momento plantiflexor crece mientras el tobillo todavía se dorsiflexiona, y en el tobillo predomina la absorción hasta poco antes del contacto contralateral. El pie gira sobre las cabezas de los metatarsianos y los dedos se extienden.',
+   q:'¿Por qué el momento plantiflexor es tan grande cuando el tobillo todavía se dorsiflexiona?',
+   ans:'Porque el peso del cuerpo ya está por delante del antepié. El momento frena la dorsiflexión; parte de la energía se almacena en el tendón y se devuelve en el despegue (Honert y Zelik, 2016).'},
+  {a:50,b:Math.round(TO),k:'PB',n:'Prebalanceo',
+   obj:'Transferir el peso al otro miembro y preparar el balanceo.',
+   mov:'El tobillo se plantiflexiona con rapidez, la rodilla se flexiona y la cadera pasa de la extensión a la flexión.',
+   mec:'Hay generación de potencia en el tobillo (A2) y en la cadera (H3). El soleus contribuye a la progresión del tronco y el gastrocnemius a iniciar el balanceo del miembro (Neptune et al., 2001); el rectus femoris regula la flexión de la rodilla. La potencia del tobillo refleja el comportamiento conjunto de músculos y tendones y no equivale directamente al acortamiento de sus fascículos.',
+   q:'¿De dónde sale la flexión de la rodilla del prebalanceo?',
+   ans:'Sobre todo de la plantiflexión del tobillo, que lleva la tibia hacia delante, y de la flexión de la cadera. Es en buena parte pasiva; el rectus femoris la limita.'},
+  {a:Math.round(TO),b:73,k:'BI',n:'Balanceo inicial',
+   obj:'Despejar el pie y avanzar el miembro desde su posición posterior.',
+   mov:'La cadera se flexiona y la rodilla alcanza su flexión máxima del ciclo; el tobillo se dorsiflexiona solo en parte.',
+   mec:'El iliopsoas avanza el muslo; el tibialis anterior recupera la dorsiflexión. El fin de la fase al 73 % es el límite convencional de Perry, cuando el pie que oscila queda frente al de apoyo.',
+   q:'¿Qué permite el despeje del pie en esta fase?',
+   ans:'Sobre todo la flexión de la rodilla, junto con la de la cadera. El tobillo todavía no llega a neutro.'},
+  {a:73,b:87,k:'BM',n:'Balanceo medio',
+   obj:'Seguir avanzando el miembro con el pie despejado.',
+   mov:()=>`La cadera continúa su flexión, la rodilla se extiende y el tobillo pasa de la flexión plantar a una ligera dorsiflexión. Perry cierra la fase al 87 %, con la tibia vertical; en este sujeto la tibia llega a la vertical hacia el ${fmt(QA.tv)} %.`,
+   mec:'La rodilla se extiende por la dinámica del miembro, incluida la gravedad y las interacciones entre segmentos; el tibialis anterior sostiene el pie cerca de neutro.',
+   q:'¿Por qué la rodilla se extiende sin actividad de los vastos?',
+   ans:'Por la dinámica del miembro: el muslo, que avanza, arrastra la pierna, y la gravedad contribuye. Los vastos se activan después, al final del balanceo.'},
+  {a:87,b:100,k:'BT',n:'Balanceo terminal',
+   obj:'Completar el avance y preparar el miembro para el apoyo.',
+   mov:'La rodilla termina de extenderse; la cadera mantiene su flexión y el tobillo queda cerca de neutro.',
+   mec:'Los isquiotibiales frenan la extensión de la rodilla y el avance del muslo: en la rodilla hay absorción neta. Los vastos y el tibialis anterior se activan para el contacto. Sin fuerza de reacción del piso, este momento solo acelera y frena el miembro: desaparecería si se ignorara su inercia (Vaughan et al., 1999).',
+   q:'¿Por qué la rodilla absorbe potencia al final del balanceo?',
+   ans:'Porque los isquiotibiales producen un momento flexor mientras la rodilla se extiende; frenan la pierna antes del contacto.'}
+];
+
+/* ---------- músculos: ventanas de actividad (Perry 1992, caps. 4–6); función aproximada por tramo ---------- */
+const MUS=[
+  {id:'glut',name:'Gluteus maximus',lat:1,w:[[95,112]],
+   f:[[95,100,'se activa al final del balanceo terminal'],[0,12,'estabiliza la cadera y el tronco en la respuesta a la carga']]},
+  {id:'gmed',name:'Gluteus medius',lat:1,w:[[96,140]],
+   f:[[96,100,'se activa al final del balanceo y prepara la carga'],[0,12,'frena la caída de la pelvis del lado contrario al recibir el peso'],[12,40,'sostiene la pelvis en el apoyo simple']]},
+  {id:'ilio',name:'Iliopsoas',lat:1,w:[[45,80]],
+   f:[[45,60,'inicia la flexión de la cadera al final del apoyo'],[60,80,'avanza el muslo en el balanceo inicial']]},
+  {id:'vast',name:'Vastos',w:[[90,120]],
+   f:[[90,100,'preparan la rodilla para la carga al final del balanceo'],[0,20,'frenan la flexión de la rodilla en la respuesta a la carga']]},
+  {id:'rf',name:'Rectus femoris',lat:1,w:[[54,68]],
+   f:[[54,68,'regula la flexión rápida de la rodilla']]},
+  {id:'ham',name:'Isquiotibiales',w:[[80,108]],
+   f:[[80,100,'frenan el avance del muslo y la extensión de la rodilla (cruzan cadera y rodilla)'],[0,8,'protegen la rodilla de la hiperextensión al inicio de la carga']]},
+  {id:'ta',name:'Tibialis anterior',lat:1,w:[[57,111]],
+   f:[[57,73,'recupera la dorsiflexión para el despeje'],[73,87,'sostiene el pie cerca de neutro'],[87,100,'posiciona el pie para el contacto del talón'],[0,11,'frena el descenso del antepié (mecedora del talón)']]},
+  {id:'sol',name:'Soleus',lat:1,w:[[8,56]],
+   f:[[8,30,'regula el avance de la tibia y contribuye al soporte'],[30,50,'contribuye al soporte y a la progresión del tronco'],[50,56,'contribuye a la progresión del tronco mientras disminuye su actividad']]},
+  {id:'gas',name:'Gastrocnemius',lat:1,w:[[12,54]],
+   f:[[12,30,'regula el avance de la tibia con el soleus; cruza también la rodilla'],[30,50,'contribuye al soporte'],[50,54,'contribuye a iniciar el balanceo del miembro']]}
+];
+const mName=mu=>mu.lat?`<i>${mu.name}</i>`:mu.name;
+function act(mu,x){ for(const [s,e] of mu.w) for(const xx of [x,x+100,x-100]) if(xx>=s&&xx<=e) return true; return false; }
+function fnAt(mu,x){ for(const [a,b,t] of mu.f) for(const xx of [x,x+100,x-100]) if(xx>=a&&xx<b) return t;
+  for(const [a,b,t] of mu.f) for(const xx of [x,x+100,x-100]) if(xx>=a-0.01&&xx<=b+1) return t; return ''; }
+const winTxt=mu=>mu.w.map(([s,e])=>e>100?`${s}–100 % y 0–${e-100} %`:`${s}–${e} %`).join(' y ');
+let sel=null;
+
+/* ---------- escenario ---------- */
+const cv=document.getElementById('stage'), cx=cv.getContext('2d');
+let Wd=720,H=440;
+function resize(){ const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  Wd=r.width; H=Math.min(r.width*0.62,440); if(innerWidth>980) H=Math.min(H,innerHeight*0.46); cv.style.height=H+'px';
+  cv.width=Math.round(Wd*dpr); cv.height=Math.round(H*dpr); cx.setTransform(dpr,0,0,dpr,0,0); }
+const dbgC=document.getElementById('dbg');
+function draw(x){ if(plane==='f') drawFront(x); else if(plane==='t') drawTop(x); else drawSag(x); }
+function drawSag(x){
+  const u=H*0.78, gy=H*0.92, hx=Wd*0.48;
+  cx.clearRect(0,0,Wd,H);
+  const R=leg(x,u), Lg=leg(x+50,u);
+  const hy=gy-(x<50?contactY(R):contactY(Lg));
+  const P=(o,p)=>({x:hx+p.x,y:hy+p.y});
+  const ink=css('--ink'),muted=css('--muted'),line=css('--line'),cR=css('--right'),cL=css('--left');
+  const hw=hipW(x)*u, sp=2*STEP*u/16;
+  cx.strokeStyle=line;cx.lineWidth=2;cx.beginPath();cx.moveTo(0,gy);cx.lineTo(Wd,gy);cx.stroke();
+  cx.lineWidth=1;cx.beginPath();
+  const k0=Math.floor((hw-hx)/sp)-1;
+  for(let k=k0;k<k0+Wd/sp+3;k++){const gx=hx+k*sp-hw;cx.moveTo(gx,gy+2);cx.lineTo(gx-8,gy+12);} cx.stroke();
+  const fl=FL*u, s0=Math.floor((hw-hx)/(STEP*u))-2;
+  for(let k=s0;k<s0+Wd/(STEP*u)+4;k++){cx.globalAlpha=.35;cx.fillStyle=(((k%2)+2)%2)?cL:cR;cx.fillRect(hx+k*STEP*u-hw,gy+3,fl,3);cx.globalAlpha=1;}
+  const tilt=F.pelvis(x), pc={x:hx,y:hy-u*0.035};
+  const TL=0.27*u, lean=rad(4), dax={x:Math.sin(lean),y:-Math.cos(lean)}, nrm={x:Math.cos(lean),y:Math.sin(lean)};   // tronco: cadera–hombro 0,288 de la talla (Winter, 2009)
+  const sh={x:pc.x+dax.x*TL,y:pc.y+dax.y*TL};
+  const arm=(t,col,al)=>{const a=t*0.7;const e={x:sh.x+Math.sin(a)*u*0.198,y:sh.y+Math.cos(a)*u*0.198};
+    const w={x:e.x+Math.sin(a+0.45)*u*0.22,y:e.y+Math.cos(a+0.45)*u*0.22};   // antebrazo y mano hasta el puño
+    cx.globalAlpha=al;cx.strokeStyle=col;cx.lineWidth=u*0.022;cx.lineCap='round';cx.beginPath();cx.moveTo(sh.x,sh.y);cx.lineTo(e.x,e.y);cx.lineTo(w.x,w.y);cx.stroke();cx.globalAlpha=1;};
+  arm(R.th,cL,.45);
+  drawLeg(Lg,P,cL,null,u,.45);
+  cx.strokeStyle=ink;cx.lineWidth=u*0.035;cx.lineCap='round';
+  { // tronco con volumen: semiprofundidad (u) a lo largo del eje, de la pelvis al hombro; adelante (+) y atrás (−)
+    const prof=[[0,0.060,0.065],[0.3,0.050,0.055],[0.62,0.062,0.060],[0.85,0.058,0.055],[1,0.035,0.045]];
+    const pt=(t,o)=>({x:pc.x+dax.x*TL*t+nrm.x*o*u,y:pc.y+dax.y*TL*t+nrm.y*o*u});
+    const F_=prof.map(([t,f])=>pt(t,f)), B_=prof.map(([t,,b])=>pt(t,-b)).reverse(), poly=F_.concat(B_);
+    cx.fillStyle=ink;cx.globalAlpha=.16;cx.beginPath();cx.moveTo((poly[0].x+poly[poly.length-1].x)/2,(poly[0].y+poly[poly.length-1].y)/2);
+    for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];cx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2);}
+    cx.closePath();cx.fill();cx.globalAlpha=1; }
+  cx.beginPath();cx.moveTo(pc.x,pc.y);cx.lineTo(sh.x,sh.y);cx.stroke();
+  { // cuello (0,052 de la talla) y cabeza (0,13): centro de la cabeza algo por delante del eje
+    const nk={x:sh.x+dax.x*u*0.055,y:sh.y+dax.y*u*0.055};
+    cx.lineWidth=u*0.03;cx.beginPath();cx.moveTo(sh.x,sh.y);cx.lineTo(nk.x,nk.y);cx.stroke();
+    cx.fillStyle=ink;cx.beginPath();cx.ellipse(nk.x+u*0.012,nk.y-u*0.062,u*0.052,u*0.068,0,0,7);cx.fill(); }
+  cx.save();cx.translate(pc.x,pc.y);cx.rotate(rad(tilt));
+  cx.fillStyle=css('--pel');cx.globalAlpha=.85;cx.beginPath();cx.ellipse(0,0,u*0.075,u*0.038,0,0,7);cx.fill();cx.globalAlpha=1;
+  cx.strokeStyle=css('--surface');cx.lineWidth=1.5;cx.beginPath();cx.moveTo(-u*0.07,0);cx.lineTo(u*0.07,0);cx.stroke();
+  cx.restore();
+  drawLeg(R,P,cR,x,u,1);
+  arm(Lg.th,cR,1);
+  if(momC.checked) drawMoments(R,P,x,u);
+  if(grfC.checked){ drawGRF(Lg,x+50,P,u,cL,.55,2); drawGRF(R,x,P,u,cR,1,3); }
+  if(grfC.checked||momC.checked) drawLegend(u);
+  cx.fillStyle=muted;cx.font='11px '+css('--f-data');cx.textAlign='right';
+  cx.fillText('dirección de marcha →',Wd-12,20);
+  cx.fillStyle=cR;cx.fillText('derecho',Wd-12,36);cx.fillStyle=cL;cx.fillText('izquierdo',Wd-12,50);
+  if(dbgC.checked) drawContacts([[R,cR],[Lg,cL]],P,gy,u);
+}
+const grfC=document.getElementById('grfC'), momC=document.getElementById('momC');
+/* ---------- plano frontal (vista posterior) y transverso (vista superior), desde los marcadores ---------- */
+let plane='s';
+const sideOf=(x,s)=>s==='R'?x:x+50;
+function footPoly(sd,x,pr){ return ['Heel','MT5','MT1'].map(n=>pr(mkAt(sd+'.'+n,x))); }
+function poly(pts,fill,al){ cx.globalAlpha=al;cx.fillStyle=fill;cx.beginPath();pts.forEach((p,i)=>i?cx.lineTo(p.x,p.y):cx.moveTo(p.x,p.y));cx.closePath();cx.fill();cx.globalAlpha=1; }
+function seg(pts,col,w,al){ cx.globalAlpha=al;cx.strokeStyle=col;cx.lineWidth=w;cx.lineCap='round';cx.lineJoin='round';cx.beginPath();pts.forEach((p,i)=>i?cx.lineTo(p.x,p.y):cx.moveTo(p.x,p.y));cx.stroke();cx.globalAlpha=1; }
+function dot(p,r,col){ cx.fillStyle=col;cx.beginPath();cx.arc(p.x,p.y,r,0,7);cx.fill(); }
+function label(t,x,y,col,al){ cx.fillStyle=col||css('--muted');cx.font='11px '+css('--f-data');cx.textAlign=al||'left';cx.fillText(t,x,y); }
+let rr=0; const narrow=()=>Wd<600;
+function labelR(t,row,col){ if(narrow()){ for(const part of t.split(' · ')){ rr++; cx.font='10px '+css('--f-data'); cx.fillStyle=col; cx.textAlign='left'; cx.fillText(part,12,52+13*rr); } }
+  else label(t,Wd-12,5+15*row,col,'right'); }
+function drawFront(x){
+  cx.clearRect(0,0,Wd,H);
+  rr=0; const s=H*0.84/1.72, gy=H*0.94, c0=Wd*(narrow()?0.74:0.5), pr=p=>({x:c0+p[2]*s,y:gy-(p[1]-G0)*s});
+  const ink=css('--ink'),muted=css('--muted'),line=css('--line'),cR=css('--right'),cL=css('--left'),act_=css('--act');
+  seg([{x:0,y:gy},{x:Wd,y:gy}],line,2,1);
+  cx.setLineDash([4,4]); seg([{x:c0,y:gy},{x:c0,y:gy-1.7*s}],line,1,1); cx.setLineDash([]);
+  const IC=[pr(mkAt('R.IC',x)),pr(mkAt('L.IC',x))], GT=[pr(mkAt('R.GTR',x)),pr(mkAt('L.GTR',x))];
+  const mid={x:(IC[0].x+IC[1].x)/2,y:(IC[0].y+IC[1].y)/2};
+  // tronco, cabeza y brazos (esquemáticos: sin marcadores en el tronco)
+  const tw=0.115*s, sh={x:mid.x,y:mid.y-0.30*s};
+  poly([{x:mid.x-tw*0.95,y:mid.y},{x:mid.x+tw*0.95,y:mid.y},{x:sh.x+tw*1.15,y:sh.y},{x:sh.x-tw*1.15,y:sh.y}],ink,.12);
+  seg([{x:mid.x,y:mid.y},sh],ink,s*0.03,1);
+  seg([{x:sh.x-tw*1.15,y:sh.y},{x:sh.x+tw*1.15,y:sh.y}],ink,s*0.025,1);
+  seg([{x:sh.x,y:sh.y},{x:sh.x,y:sh.y-0.05*s}],ink,s*0.025,1);
+  cx.fillStyle=ink;cx.beginPath();cx.ellipse(sh.x,sh.y-0.12*s,0.06*s,0.075*s,0,0,7);cx.fill();
+  for(const [sgn,col] of [[1,cR],[-1,cL]]){ const a={x:sh.x+sgn*tw*1.15,y:sh.y}; seg([a,{x:a.x+sgn*0.02*s,y:a.y+0.30*s},{x:a.x+sgn*0.03*s,y:a.y+0.52*s}],col,s*0.022,.55); }
+  // miembros: primero el que está en balanceo
+  const order=x<50?['L','R']:['R','L'];
+  for(const sd of order){ const col=sd==='R'?cR:cL, xx=sideOf(x,sd), st=((xx%100)+100)%100<TO;
+    poly(footPoly(sd,x,pr),col,st?.9:.5);
+    seg([pr(mkAt(sd+'.GTR',x)),pr(mkAt(sd+'.Knee',x)),pr(mkAt(sd+'.Ankle',x)),pr(mkAt(sd+'.Heel',x))],col,s*0.032,st?1:.6); }
+  // pelvis: crestas ilíacas y trocánteres
+  poly([IC[0],IC[1],GT[1],GT[0]],css('--pel'),.85);
+  seg([IC[1],IC[0]],css('--surface'),1.5,1);
+  cx.setLineDash([5,4]); seg([{x:mid.x-0.24*s,y:mid.y},{x:mid.x+0.24*s,y:mid.y}],muted,1,1); cx.setLineDash([]);
+  // gluteus medius de cada lado (cresta → trocánter)
+  for(const [i,sd] of [[0,'R'],[1,'L']]){ const mu=MUS.find(m=>m.id==='gmed'), on=act(mu,sideOf(x,sd)), isSel=sel==='gmed';
+    const a={x:IC[i].x+(IC[i].x-mid.x)*0.15,y:IC[i].y+0.01*s};
+    seg([a,GT[i]],on?act_:line,s*(on?(isSel?0.03:0.022):0.012),sel&&!isSel?.35:1); }
+  for(const g of GT) dot(g,3.5,css('--surface'));
+  // fuerza de reacción: vertical y mediolateral desde el centro del pie, prolongada hasta la pelvis
+  if(grfC.checked) for(const sd of ['L','R']){ const xx=sideOf(x,sd), V=F.grfV(xx); if(V<0.02) continue;
+    const col=sd==='R'?cR:cL, fp=footPoly(sd,x,pr), c={x:(fp[0].x+fp[1].x+fp[2].x)/3,y:gy};
+    const ml=F.gML(xx)*(sd==='R'?-1:1), S=0.5*s, tip={x:c.x+ml*S,y:c.y-V*S};
+    cx.setLineDash([3,4]); const k=(gy-mid.y)/(V*S); seg([c,{x:c.x+ml*S*k,y:mid.y}],col,1,.6); cx.setLineDash([]);
+    arrow(c,tip,col,sd==='R'?3:2,sd==='R'?1:.55); }
+  if(momC.checked){ const m=F.mHipF(x), r=Math.abs(m)*0.09*s; if(r>2){ cx.strokeStyle=css('--mom');cx.fillStyle=css('--mom');cx.lineWidth=2;cx.beginPath();cx.arc(GT[0].x,GT[0].y,r,0,7); if(m>0){cx.globalAlpha=.55;cx.fill();cx.globalAlpha=1;} else cx.stroke(); } }
+  const ob=F.pObl(x);
+  label('vista posterior',12,20); label('← izquierdo',12,36,cL); label('derecho →',12,52,cR);
+  labelR(`oblicuidad pélvica ${fmt(Math.abs(ob))}° · ${Math.abs(ob)<0.5?'nivelada':ob>0?'cae el lado izquierdo':'cae el lado derecho'}`,1,ink);
+  if(grfC.checked) labelR('→ fuerza de reacción · a trazos, su línea de acción',2,muted);
+  if(momC.checked) labelR('● momento externo aductor · de la cadera derecha',grfC.checked?3:2,muted);
+}
+function drawTop(x){
+  cx.clearRect(0,0,Wd,H);
+  rr=0; const s=Math.min(Wd/1.7,H/1.0), c0=Wd*(narrow()?0.62:0.46), cy0=H*(narrow()?0.66:0.52), pr=p=>({x:c0+p[0]*s,y:cy0+p[2]*s});
+  const ink=css('--ink'),muted=css('--muted'),line=css('--line'),cR=css('--right'),cL=css('--left');
+  cx.setLineDash([6,5]); seg([{x:0,y:cy0},{x:Wd,y:cy0}],line,1,1); cx.setLineDash([]);
+  const order=x<50?['L','R']:['R','L'];
+  for(const sd of order){ const col=sd==='R'?cR:cL, xx=sideOf(x,sd), st=((xx%100)+100)%100<TO;
+    seg([pr(mkAt(sd+'.GTR',x)),pr(mkAt(sd+'.Knee',x)),pr(mkAt(sd+'.Ankle',x))],col,s*0.014,st?.55:.3);
+    const fp=footPoly(sd,x,pr); poly(fp,col,st?.9:.45);
+    if(st&&sd==='R'){ const h=fp[0], tq={x:(fp[1].x+fp[2].x)/2,y:(fp[1].y+fp[2].y)/2}, d={x:tq.x-h.x,y:tq.y-h.y};
+      cx.setLineDash([3,3]); seg([h,{x:h.x+d.x*1.8,y:h.y+d.y*1.8}],col,1,1); seg([h,{x:h.x+Math.hypot(d.x,d.y)*1.8,y:h.y}],muted,1,1); cx.setLineDash([]); } }
+  const AS=[pr(mkAt('R.ASIS',x)),pr(mkAt('L.ASIS',x))], PS=[pr(mkAt('R.PSIS',x)),pr(mkAt('L.PSIS',x))];
+  const pc={x:(AS[0].x+AS[1].x+PS[0].x+PS[1].x)/4,y:(AS[0].y+AS[1].y+PS[0].y+PS[1].y)/4};
+  const am={x:(AS[0].x+AS[1].x)/2,y:(AS[0].y+AS[1].y)/2}, pm={x:(PS[0].x+PS[1].x)/2,y:(PS[0].y+PS[1].y)/2};
+  seg([AS[0],AS[1]],css('--pel'),s*0.045,.9); seg([am,pm],css('--pel'),s*0.03,.9);
+  dot(AS[0],s*0.028,cR); dot(AS[1],s*0.028,cL);
+  cx.setLineDash([5,4]); seg([{x:am.x,y:am.y-0.2*s},{x:am.x,y:am.y+0.2*s}],muted,1,1); cx.setLineDash([]);
+
+  const pr_=F.pRot(x), fa=F.fpa(x);
+  label('vista superior · dirección de marcha →',12,20);
+  label('izquierdo ↑',12,36,cL); label('derecho ↓',12,52,cR);
+  labelR(`rotación pélvica ${fmt(Math.abs(pr_))}° · ${Math.abs(pr_)<0.5?'neutra':pr_>0?'adelante el lado derecho':'atrás el lado derecho'}`,1,ink);
+  if(F.grfV(x)>0.02) labelR(`progresión del pie derecho · ${fmt(Math.abs(fa))}° ${fa>=0?'hacia afuera':'hacia adentro'}`,2,cR);
+}
+
+function arrow(a,b,col,w,al){ const ang=Math.atan2(b.y-a.y,b.x-a.x),h=Math.max(7,w*3);
+  if(!arrow.halo){ arrow.halo=1; arrow(a,b,css('--surface'),w+3,al*0.9); arrow.halo=0; }
+  cx.globalAlpha=al;cx.strokeStyle=col;cx.fillStyle=col;cx.lineWidth=w;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x-Math.cos(ang)*h*.6,b.y-Math.sin(ang)*h*.6);cx.stroke();
+  cx.beginPath();cx.moveTo(b.x,b.y);cx.lineTo(b.x-Math.cos(ang-0.4)*h,b.y-Math.sin(ang-0.4)*h);cx.lineTo(b.x-Math.cos(ang+0.4)*h,b.y-Math.sin(ang+0.4)*h);cx.closePath();cx.fill();cx.globalAlpha=1;}
+function drawGRF(L,xx,P,u,col,al,w){ const V=F.grfV(xx); if(V<0.02) return;
+  const c=P(0,copOf(L,xx)), S=0.28*u, tip={x:c.x+F.grfAP(xx)*S,y:c.y-V*S};
+  cx.globalAlpha=al;cx.fillStyle=col;cx.beginPath();cx.arc(c.x,c.y,3.5,0,7);cx.fill();cx.globalAlpha=1;
+  arrow(c,tip,col,w,al); }
+function drawMoments(L,P,x,u){ const js=[[P(0,{x:0,y:0}),F.mHip(x)],[P(0,L.K),F.mKnee(x)],[P(0,L.A),F.mAnkle(x)]], col=css('--mom');
+  for(const [j,m] of js){ const r=Math.abs(m)*0.055*u; if(r<u*0.005) continue;
+    cx.strokeStyle=col;cx.fillStyle=col;cx.lineWidth=2;cx.beginPath();cx.arc(j.x,j.y,r,0,7);
+    if(m>0){cx.globalAlpha=.55;cx.fill();cx.globalAlpha=1;} else cx.stroke(); } }
+function drawLegend(u){ const y0=dbgC.checked?76:18, col=css('--muted'); cx.font='11px '+css('--f-data');cx.textAlign='left';cx.fillStyle=col;
+  let y=y0;
+  if(grfC.checked){ cx.fillText('→ fuerza de reacción',12,y); y+=14; }
+  if(momC.checked){ cx.fillText('momento interno:',12,y); y+=14; cx.fillText('● extensor/plantiflexor',12,y); y+=14; cx.fillText('○ flexor/dorsiflexor',12,y); } }
+function drawContacts(list,P,gy,u){
+  cx.font='10.5px '+css('--f-data');cx.textAlign='left';
+  const names=[['talón D','punta D'],['talón I','punta I']];
+  list.forEach(([L,col],j)=>{ const txt=[];
+    [L.heel,L.toe].forEach((pt,k)=>{ const q=P(0,pt), gap=(gy-q.y)/u*1000;
+      cx.fillStyle=col;cx.beginPath();cx.arc(q.x,q.y,3.5,0,7);cx.fill();
+      cx.strokeStyle=col;cx.setLineDash([2,2]);cx.lineWidth=1;cx.beginPath();cx.moveTo(q.x,q.y);cx.lineTo(q.x,gy);cx.stroke();cx.setLineDash([]);
+      txt.push(names[j][k]+' '+fmt(Math.abs(gap)<0.05?0:gap,1)); });
+    cx.fillStyle=col;cx.fillText(txt.join(' · '),12,40+j*14); });
+  cx.fillStyle=css('--muted');cx.fillText('altura sobre el suelo (u/1000)',12,26);
+}
+function drawLeg(L,P,col,x,u,al){
+  const hip=P(0,{x:0,y:0}),K=P(0,L.K),A=P(0,L.A),he=P(0,L.heel),to=P(0,L.toe);
+  cx.globalAlpha=al;cx.strokeStyle=col;cx.lineCap='round';cx.lineJoin='round';cx.lineWidth=u*0.03;
+  cx.beginPath();cx.moveTo(hip.x,hip.y);cx.lineTo(K.x,K.y);cx.lineTo(A.x,A.y);cx.stroke();
+  const mt=P(0,L.mtp);cx.lineWidth=u*0.022;cx.beginPath();cx.moveTo(A.x,A.y);cx.lineTo(he.x,he.y);cx.lineTo(mt.x,mt.y);cx.closePath();cx.stroke();
+  cx.lineWidth=u*0.016;cx.beginPath();cx.moveTo(mt.x,mt.y);cx.lineTo(to.x,to.y);cx.stroke();
+  cx.globalAlpha=1;
+  if(x!==null){ drawMuscles(L,P,x,u); cx.fillStyle=css('--surface');for(const j of [hip,K,A]){cx.beginPath();cx.arc(j.x,j.y,u*0.011,0,7);cx.fill();}}
+}
+function drawMuscles(L,P,x,u){
+  const fT={x:Math.cos(L.th),y:-Math.sin(L.th)}, fS={x:Math.cos(L.ts),y:-Math.sin(L.ts)};
+  const dT={x:Math.sin(L.th),y:Math.cos(L.th)}, dS={x:Math.sin(L.ts),y:Math.cos(L.ts)};
+  const onT=(t,o)=>P(0,{x:dT.x*L.Lt*t+fT.x*o*u,y:dT.y*L.Lt*t+fT.y*o*u});
+  const onS=(t,o)=>P(0,{x:L.K.x+dS.x*L.Ls*t+fS.x*o*u,y:L.K.y+dS.y*L.Ls*t+fS.y*o*u});
+  const hip=P(0,{x:0,y:0});
+  const paths={
+    glut:[{x:hip.x-u*0.06,y:hip.y-u*0.045},onT(0.12,-0.03),onT(0.3,-0.022)],
+    ilio:[{x:hip.x+u*0.015,y:hip.y-u*0.11},{x:hip.x+u*0.045,y:hip.y-u*0.02},onT(0.18,0.018)],
+    rf:[{x:hip.x+u*0.035,y:hip.y-u*0.035},onT(0.5,0.04),onT(0.96,0.03),onS(0.08,0.016)],
+    vast:[onT(0.25,0.022),onT(0.6,0.026),onT(0.97,0.018),onS(0.1,0.01)],
+    ham:[{x:hip.x-u*0.03,y:hip.y+u*0.01},onT(0.5,-0.03),onT(0.95,-0.022),onS(0.12,-0.012)],
+    ta:[onS(0.15,0.018),onS(0.6,0.02),onS(0.92,0.012),P(0,{x:L.A.x+L.f.x*L.Lf*0.3,y:L.A.y+L.f.y*L.Lf*0.3-u*0.004})],
+    gas:[onT(0.9,-0.016),onS(0.25,-0.036),onS(0.5,-0.03),onS(0.78,-0.02),P(0,L.heel)],
+    sol:[onS(0.3,-0.018),onS(0.6,-0.02),onS(0.85,-0.014),P(0,L.heel)]
+  };
+  const ac=css('--act'), off=css('--line');
+  const order=MUS.filter(m=>m.id!==sel).concat(MUS.filter(m=>m.id===sel));
+  for(const mu of order){ const on=act(mu,x), pts=paths[mu.id], isSel=mu.id===sel, dim=sel&&!isSel; if(!pts) continue;
+    cx.lineCap='round';cx.lineJoin='round';
+    cx.strokeStyle=on?ac:off;
+    cx.globalAlpha=dim?(on?0.25:0.5):(on?1:0.9);
+    cx.lineWidth=u*(isSel?(on?0.032:0.022):(on?0.022:0.013));
+    if(isSel&&!on) cx.setLineDash([u*0.02,u*0.015]);
+    cx.beginPath();cx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length-1;i++){const mx=(pts[i].x+pts[i+1].x)/2,my=(pts[i].y+pts[i+1].y)/2;cx.quadraticCurveTo(pts[i].x,pts[i].y,mx,my);}
+    const l=pts[pts.length-1];cx.lineTo(l.x,l.y);cx.stroke();cx.setLineDash([]);cx.globalAlpha=1;}
+}
+
+/* ---------- gráficas ---------- */
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;};
+function plot(host,cfg){
+  const box=document.createElement('div');box.className='plot';
+  const h=document.createElement('h3');h.innerHTML=cfg.title+' <span></span>';box.appendChild(h);
+  const VW=320,VH=cfg.vh||140,l=34,r=8,t=8,b=20, X=p=>l+p/100*(VW-l-r), Y=v=>t+(cfg.max-v)/(cfg.max-cfg.min)*(VH-t-b);
+  const s=el('svg',{viewBox:`0 0 ${VW} ${VH}`,role:'img','aria-label':cfg.aria},box);
+  el('rect',{x:X(0),y:t,width:X(TO)-X(0),height:VH-t-b,fill:'var(--stance)'},s);
+  if(cfg.dsBands) for(const [p0,p1] of [[0,TO-50],[50,TO]]){ el('rect',{x:X(p0),y:t,width:X(p1)-X(p0),height:VH-t-b,fill:'var(--muted)','fill-opacity':.13},s);
+    el('text',{x:X(p0)+3,y:t+10,'text-anchor':'start',style:'font-size:8.5px;fill:var(--muted)'},s).textContent='doble apoyo'; }
+  for(const v of cfg.ticks){el('line',{x1:l,x2:VW-r,y1:Y(v),y2:Y(v),stroke:'var(--line)','stroke-width':v===0?1:.5},s);
+    el('text',{x:l-4,y:Y(v)+3,'text-anchor':'end'},s).textContent=fmt(v,cfg.dec||0);}
+  for(const p of [0,20,40,60,80,100]) el('text',{x:X(p),y:VH-6,'text-anchor':'middle'},s).textContent=p+'%';
+  el('line',{x1:X(TO),x2:X(TO),y1:t,y2:VH-b,stroke:'var(--muted)','stroke-dasharray':'3 3','stroke-width':.8},s);
+  for(const g of (cfg.noGhost?[]:GH)) for(const se of cfg.series){ if(!GF[g][se.k]) continue; let d='';
+    for(let p=0;p<=100;p+=1)d+=(p?'L':'M')+X(p).toFixed(1)+','+Y(GF[g][se.k](p)).toFixed(1);
+    el('path',{d,fill:'none',stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':FAM.indexOf(g)<FAM.indexOf(KEY)?'2 2':'6 3',opacity:.75},s); }
+  const dots=[];
+  for(const se of cfg.series){let d='',pen=false;for(let p=0;p<=100;p+=0.5){ const on=!se.ds||(F.grfV(p)>0.005&&F.grfVL(p)>0.005);
+      if(on){d+=(pen?'L':'M')+X(p).toFixed(1)+','+Y(F[se.k](p)).toFixed(1);} pen=on; }
+    el('path',{d,fill:'none',stroke:`var(${se.c})`,'stroke-width':se.w||2,'stroke-dasharray':se.dash||'none'},s);
+    if(!se.ds) dots.push({k:se.k,sh:se.sh||0,c:el('circle',{r:4,fill:`var(${se.c})`,stroke:'var(--surface)','stroke-width':1.5},s)});}
+  const cur=el('line',{y1:t,y2:VH-b,stroke:'var(--cursor)','stroke-width':1},s);
+  host.appendChild(box);
+  return x=>{ if(box.offsetParent===null) return;
+    cur.setAttribute('x1',X(x));cur.setAttribute('x2',X(x));
+    for(const d of dots){const xx=(x+d.sh)%100;d.c.setAttribute('cx',X(xx));d.c.setAttribute('cy',Y(F[d.k](xx)));}
+    h.querySelector('span').textContent=cfg.read(x);};
+}
+const deg=v=>fmt(Math.abs(v))+'°';
+const rdHip=v=>deg(v)+(v>=0?' flexión':' extensión'), rdAnk=v=>deg(v)+(v>=0?' dorsiflexión':' flexión plantar');
+const JC={
+  pelvis:{title:'Pelvis',aria:'Inclinación pélvica a lo largo del ciclo',min:0,max:20,ticks:[0,10,20],series:[{k:'pelvis',c:'--pel'}],read:x=>deg(F.pelvis(x))+' anteversión'},
+  hip:{title:'Cadera',aria:'Flexión y extensión de cadera a lo largo del ciclo',min:-20,max:50,ticks:[-20,0,20,40],series:[{k:'hip',c:'--hip'}],read:x=>rdHip(F.hip(x))},
+  knee:{title:'Rodilla',aria:'Flexión de rodilla a lo largo del ciclo',min:-10,max:70,ticks:[0,20,40,60],series:[{k:'knee',c:'--knee'}],read:x=>deg(F.knee(x))+' flexión'},
+  ankle:{title:'Tobillo',aria:'Dorsiflexión y flexión plantar a lo largo del ciclo',min:-20,max:20,ticks:[-20,-10,0,10,20],series:[{k:'ankle',c:'--ankle'}],read:x=>rdAnk(F.ankle(x))}
+};
+const sg=(v,a,b)=>fmt(Math.abs(v))+'° '+(Math.abs(v)<0.5?'':v>0?a:b);
+if(HAS3) Object.assign(JC,{
+  pObl:{title:'Oblicuidad pélvica',aria:'Oblicuidad pélvica a lo largo del ciclo',min:-10,max:10,ticks:[-10,-5,0,5,10],series:[{k:'pObl',c:'--pel'}],read:x=>sg(F.pObl(x),'derecho arriba','derecho abajo')},
+  hAdd:{title:'Cadera: aducción',aria:'Aducción y abducción de la cadera derecha',min:-10,max:20,ticks:[-10,0,10,20],series:[{k:'hAdd',c:'--hip'}],read:x=>sg(F.hAdd(x),'aducción','abducción')},
+  pRot:{title:'Rotación pélvica',aria:'Rotación de la pelvis a lo largo del ciclo',min:-10,max:10,ticks:[-10,-5,0,5,10],series:[{k:'pRot',c:'--pel'}],read:x=>sg(F.pRot(x),'derecho adelante','derecho atrás')},
+  hRot:{title:'Cadera: rotación',aria:'Rotación de la cadera derecha',min:-10,max:15,ticks:[-10,0,10],series:[{k:'hRot',c:'--hip'}],read:x=>sg(F.hRot(x),'interna','externa')},
+  fpa:{title:'Progresión del pie',aria:'Ángulo de progresión del pie derecho',min:-5,max:25,ticks:[0,10,20],series:[{k:'fpa',c:'--ankle'}],read:x=>sg(F.fpa(x),'hacia afuera','hacia adentro')}});
+const PLK={s:['pelvis','hip','knee','ankle'],f:HAS3?['pObl','hAdd']:[],t:HAS3?['pRot','hRot','fpa']:[]};
+const ups=[];
+for(const k of ['pelvis','hip','knee','ankle']) ups.push(plot(document.getElementById('plots'),JC[k]));
+if(HAS3){
+  for(const k of PLK.f) ups.push(plot(document.getElementById('froPlots'),JC[k]));
+  for(const k of PLK.t) ups.push(plot(document.getElementById('traPlots'),JC[k]));
+  const fk=document.getElementById('froKin');
+  ups.push(plot(fk,{title:'Momento externo de cadera',aria:'Momento frontal externo de la cadera derecha',min:-0.4,max:1.2,ticks:[0,0.5,1],dec:1,series:[{k:'mHipF',c:'--mom'}],read:x=>{const v=F.mHipF(x);return fmt(v,2)+(Math.abs(v)<0.03?'':v>0?' aductor':' abductor');}}));
+  ups.push(plot(fk,{title:'Momento externo de rodilla',aria:'Momento frontal externo de la rodilla derecha',min:-0.2,max:0.6,ticks:[0,0.2,0.4],dec:1,series:[{k:'mKneeF',c:'--mom'}],read:x=>{const v=F.mKneeF(x);return fmt(v,2)+(Math.abs(v)<0.03?'':v>0?' varo':' valgo');}}));
+  ups.push(plot(fk,{title:'Mediolateral (× peso)',aria:'Fuerza de reacción mediolateral de cada pie',min:-0.05,max:0.1,ticks:[0,0.05,0.1],dec:2,noGhost:1,
+    series:[{k:'gML',c:'--right',w:3.2},{k:'gMLL',c:'--left',sh:50,w:1.6}],read:x=>'D '+fmt(F.gML(x),2)+' · I '+fmt(F.gMLL((x+50)%100),2)}));
+}
+// vista básica: una articulación
+const jsel=document.getElementById('jsel'), bHost=document.getElementById('basicPlot'); const bUps={};
+for(const k of [...PLK.s,...PLK.f,...PLK.t]){
+  const b=document.createElement('button');b.type='button';b.textContent=JC[k].title.replace('Cadera: ','Cadera, ');b.dataset.k=k;jsel.appendChild(b);
+  const wrapK=document.createElement('div');wrapK.dataset.k=k;bHost.appendChild(wrapK);
+  bUps[k]=plot(wrapK,Object.assign({},JC[k],{vh:190}));}
+let joint=store.get('cms-joint')||'knee'; if(!JC[joint]) joint='knee';
+const jointMem={s:PLK.s.includes(joint)?joint:'knee',f:'pObl',t:'pRot'};
+function setJoint(k){joint=k;store.set('cms-joint',k);jointMem[plane]=k;
+  [...jsel.children].forEach(b=>{b.setAttribute('aria-pressed',b.dataset.k===k);b.hidden=!PLK[plane].includes(b.dataset.k);});
+  [...bHost.children].forEach(d=>d.hidden=d.dataset.k!==k); render();}
+jsel.onclick=e=>{const b=e.target.closest('button');if(b)setJoint(b.dataset.k);};
+ups.push(x=>bUps[joint](x));
+// cinética: momento y potencia por articulación, cada una con su escala
+const kin=document.getElementById('kinet');
+const KR=[
+  {n:'Tobillo',m:'mAnkle',p:'pAnkle',c:'--ankle',mm:[-0.5,2],mt:[0,0.5,1,1.5,2],pm:[-1.5,6.5],pt:[0,2,4,6],mr:v=>fmt(v,2)+(v>=0?' plantiflexor':' dorsiflexor')},
+  {n:'Rodilla',m:'mKnee',p:'pKnee',c:'--knee',mm:[-0.8,0.6],mt:[-0.6,-0.3,0,0.3],pm:[-1.2,1.2],pt:[-1,-0.5,0,0.5,1],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')},
+  {n:'Cadera',m:'mHip',p:'pHip',c:'--hip',mm:[-1.2,1.2],mt:[-1,-0.5,0,0.5,1],pm:[-1.5,1.5],pt:[-1,0,1],mr:v=>fmt(v,2)+(v>=0?' extensor':' flexor')}
+];
+for(const r of KR){ const row=document.createElement('div');row.className='kin-row';
+  const lab=document.createElement('div');lab.className='rl';lab.textContent=r.n;row.appendChild(lab);
+  const a=document.createElement('div'),b=document.createElement('div');row.appendChild(a);row.appendChild(b);kin.appendChild(row);
+  ups.push(plot(a,{title:'Momento (Nm/kg)',aria:'Momento interno de '+r.n.toLowerCase(),min:r.mm[0],max:r.mm[1],ticks:r.mt,dec:1,series:[{k:r.m,c:'--mom'}],read:x=>r.mr(F[r.m](x))}));
+  ups.push(plot(b,{title:'Potencia (W/kg)',aria:'Potencia neta de '+r.n.toLowerCase(),min:r.pm[0],max:r.pm[1],ticks:r.pt,dec:1,series:[{k:r.p,c:r.c}],read:x=>{const v=F[r.p](x);return fmt(v,1)+(Math.abs(v)<0.05?'':v>0?' generación':' absorción');}}));}
+
+const gHost=document.getElementById('grfPlots');
+ups.push(plot(gHost,{title:'Vertical (× peso)',aria:'Fuerza de reacción vertical de cada pie y su suma en el doble apoyo',min:0,max:1.6,ticks:[0,0.5,1,1.5],dec:1,noGhost:1,
+  series:[{k:'grfVRo',c:'--right',w:3.2},{k:'grfVLo',c:'--left',sh:50,w:1.6}],read:x=>'D '+fmt(F.grfVRo(x),2)+' · I '+fmt(F.grfVLo((x+50)%100),2)}));
+ups.push(plot(gHost,{title:'Anteroposterior (× peso)',aria:'Fuerza de reacción anteroposterior de cada pie',min:-0.3,max:0.3,ticks:[-0.2,0,0.2],dec:1,noGhost:1,
+  series:[{k:'grfAPRo',c:'--right',w:3.2},{k:'grfAPLo',c:'--left',sh:50,w:1.6}],read:x=>'D '+fmt(F.grfAPRo(x),2)+' · I '+fmt(F.grfAPLo((x+50)%100),2)}));
+
+/* ---------- temporalidad muscular ---------- */
+const emg=document.getElementById('emg');
+const EL=122,ER=10,ET=6,RH=27,EX=p=>EL+p/100*(470-EL-ER);
+emg.setAttribute('viewBox',`0 0 470 ${ET+RH*MUS.length+22}`);
+el('rect',{x:EX(0),y:ET,width:EX(TO)-EX(0),height:RH*MUS.length,fill:'var(--stance)'},emg);
+const rowsE={};
+MUS.forEach((mu,i)=>{const y=ET+i*RH; const g=el('g',{tabindex:0,role:'button','aria-label':'Resaltar '+mu.name,style:'cursor:pointer'},emg);
+  const hl=el('rect',{x:0,y,width:470,height:RH,fill:'var(--act)','fill-opacity':0},g);
+  el('text',{x:EL-8,y:y+RH/2+3,'text-anchor':'end',style:'font-size:10.5px;fill:var(--ink)'+(mu.lat?';font-style:italic':'')},g).textContent=mu.name;
+  for(const [s,e] of mu.w){ const segs=e>100?[[s,100],[0,e-100]]:[[s,e]];
+    for(const [a,b] of segs) el('rect',{x:EX(a),y:y+6,width:EX(b)-EX(a),height:RH-12,fill:'var(--act)',rx:2},g);}
+  el('line',{x1:EL,x2:470-ER,y1:y+RH,y2:y+RH,stroke:'var(--line)','stroke-width':.5},emg);
+  g.onclick=()=>toggleSel(mu.id); g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleSel(mu.id);}};
+  rowsE[mu.id]=hl;});
+for(const p of [0,20,40,60,80,100]) el('text',{x:EX(p),y:ET+RH*MUS.length+14,'text-anchor':'middle'},emg).textContent=p+'%';
+el('line',{x1:EX(TO),x2:EX(TO),y1:ET,y2:ET+RH*MUS.length,stroke:'var(--muted)','stroke-dasharray':'3 3','stroke-width':.8},emg);
+const ecur=el('line',{y1:ET,y2:ET+RH*MUS.length,stroke:'var(--cursor)','stroke-width':1.2},emg);
+function toggleSel(id){sel=sel===id?null:id; for(const k in rowsE) rowsE[k].setAttribute('fill-opacity',k===sel?0.12:0); lastChips=''; render();}
+
+/* ---------- extremos y tabla ---------- */
+function ext(k,a,b,sgn){let best={x:a,v:F[k](a)};for(let x=a;x<=b;x+=0.1){const v=F[k](x);if(sgn*v>sgn*best.v)best={x,v};}return best;}
+const EXT={
+  hipIC:{x:0,v:F.hip(0)}, hipExt:ext('hip',30,70,-1), hipFlex:ext('hip',70,100,1),
+  kneeLR:ext('knee',0,30,1), kneeSt:ext('knee',25,50,-1), kneeTO:{x:TO,v:F.knee(TO)}, kneeSw:ext('knee',60,90,1),
+  ankleLR:ext('ankle',0,20,-1), ankleMax:ext('ankle',20,55,1), anklePF:ext('ankle',55,75,-1),
+  pelMin:ext('pelvis',0,100,-1), pelMax:ext('pelvis',0,100,1),
+  pA2:ext('pAnkle',40,65,1), pH3:ext('pHip',50,75,1), pK1:ext('pKnee',0,20,-1), pK4:ext('pKnee',80,100,-1)
+};
+(function(){
+  const pct=v=>fmt(v)+' %';
+  const evRows=EV;
+  let h='<caption class="sr">Valores en los eventos del ciclo</caption><tr><th>Evento</th><th>%</th><th>Pelvis</th><th>Cadera</th><th>Rodilla</th><th>Tobillo</th><th>P tobillo</th><th>P rodilla</th><th>P cadera</th></tr>';
+  for(const e of evRows){const x=e.p;h+=`<tr><td>${e.n}</td><td>${fmt(e.p)}</td><td>${fmt(F.pelvis(x))}</td><td>${fmt(F.hip(x))}</td><td>${fmt(F.knee(x))}</td><td>${fmt(F.ankle(x))}</td><td>${fmt(F.pAnkle(x),1)}</td><td>${fmt(F.pKnee(x),1)}</td><td>${fmt(F.pHip(x),1)}</td></tr>`;}
+  document.getElementById('evTable').innerHTML=h;
+  const rows=[
+    ['Pelvis','anteversión mínima / máxima',`${fmt(EXT.pelMin.v)}° / ${fmt(EXT.pelMax.v)}°`,''],
+    ['Cadera','flexión al contacto',fmt(EXT.hipIC.v)+'°','0 %'],
+    ['Cadera','extensión máxima',fmt(-EXT.hipExt.v)+'°',pct(EXT.hipExt.x)],
+    ['Cadera','flexión máxima de balanceo',fmt(EXT.hipFlex.v)+'°',pct(EXT.hipFlex.x)],
+    ['Rodilla','flexión de aceptación del peso',fmt(EXT.kneeLR.v)+'°',pct(EXT.kneeLR.x)],
+    ['Rodilla','flexión mínima en apoyo',fmt(EXT.kneeSt.v)+'°',pct(EXT.kneeSt.x)],
+    ['Rodilla','flexión al despegue',fmt(EXT.kneeTO.v)+'°',fmt(TO)+' %'],
+    ['Rodilla','flexión máxima de balanceo',fmt(EXT.kneeSw.v)+'°',pct(EXT.kneeSw.x)],
+    ['Tobillo','flexión plantar inicial',fmt(-EXT.ankleLR.v)+'°',pct(EXT.ankleLR.x)],
+    ['Tobillo','dorsiflexión máxima en apoyo',fmt(EXT.ankleMax.v)+'°',pct(EXT.ankleMax.x)],
+    ['Tobillo','flexión plantar máxima',fmt(-EXT.anklePF.v)+'°',pct(EXT.anklePF.x)],
+    ['Tobillo','generación máxima (A2)',fmt(EXT.pA2.v,1)+' W/kg',pct(EXT.pA2.x)],
+    ['Cadera','generación en el prebalanceo (H3)',fmt(EXT.pH3.v,1)+' W/kg',pct(EXT.pH3.x)],
+    ['Rodilla','absorción en la respuesta a la carga (K1)',fmt(EXT.pK1.v,1)+' W/kg',pct(EXT.pK1.x)],
+    ['Rodilla','absorción al final del balanceo (K4)',fmt(EXT.pK4.v,1)+' W/kg',pct(EXT.pK4.x)]
+  ];
+  document.getElementById('exTable').innerHTML='<caption class="sr">Extremos de las curvas</caption><tr><th>Segmento</th><th>Valor</th><th>Magnitud</th><th>Momento</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td style="text-align:left">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+})();
+
+/* ---------- fases como controles ---------- */
+const phEl=document.getElementById('phases'); phEl.style.gridTemplateColumns=PH.map(p=>(p.b-p.a)+'fr').join(' ');
+PH.forEach((p,i)=>{const b=document.createElement('button');b.type='button';b.textContent=p.k;b.title=`${p.n} (${p.a}–${p.b} %)`;
+  b.setAttribute('aria-label',`${p.n}, ${p.a} a ${p.b} % del ciclo`);if(i>=4)b.classList.add('sw');
+  b.onclick=()=>{x=p.a;curPh=i;render();setPlaying(false);};phEl.appendChild(b);});
+const evEl=document.getElementById('events');
+EV.slice(0,-1).forEach(e=>{const s=document.createElement('span');s.textContent=e.k;s.title=e.n+' ('+fmt(e.p)+' %)';s.style.left=e.p+'%';if(e.conv)s.classList.add('conv');evEl.appendChild(s);});
+function phaseIdx(x){return x>=100?0:PH.findIndex(p=>x>=p.a&&x<p.b);}
+const phaseOf=x=>(x<PCI.b||x>=100)?PCI:PH[phaseIdx(x)];
+const leftName=x=>{const xl=((x+50)%100);return (xl<PCI.b?PCI:PH[phaseIdx(xl)]).n.toLowerCase();};
+function eventAt(x){return EV.find(e=>Math.abs(x-e.p)<0.75)||null;}
+const val=v=>typeof v==='function'?v():v;
+
+/* ---------- textos de los planos frontal y transverso, por fase (miembro derecho de referencia) ---------- */
+const PT={
+ f:{CI:'Plano frontal. La pelvis está cerca de la horizontal. El pie derecho toca el suelo y el izquierdo todavía sostiene carga.',
+    RC:'Plano frontal. El peso pasa al miembro derecho y la pelvis desciende del lado izquierdo, que se queda sin apoyo; la cadera derecha se aduce. La fuerza de reacción pasa por dentro de la cadera y crea un momento externo aductor: el gluteus medius, el gluteus minimus y el tensor fasciae latae derechos frenan la caída con una contracción excéntrica.',
+    AM:'Plano frontal. Apoyo simple sobre el derecho. La caída del lado izquierdo llega a su máximo al comienzo de la fase y la pelvis vuelve hacia la horizontal mientras el centro de masa se desplaza hacia el pie derecho. Los abductores derechos sostienen la pelvis. Si no pueden, el lado izquierdo cae más (signo de Trendelenburg) o el tronco se inclina sobre la cadera derecha y acorta el brazo de palanca del peso.',
+    AT:'Plano frontal. La pelvis pasa por la horizontal y empieza a descender del lado derecho. El momento externo aductor de la cadera derecha tiene su segundo pico.',
+    PB:'Plano frontal. El peso pasa al pie izquierdo. El lado derecho de la pelvis desciende y la cadera derecha pasa hacia la abducción.',
+    BI:'Plano frontal. Con el izquierdo en apoyo simple, el lado derecho de la pelvis, ahora sin apoyo, llega a su máxima caída, que frenan los abductores izquierdos; la cadera derecha queda en ligera abducción.',
+    BM:'Plano frontal. La pelvis vuelve hacia la horizontal y la cadera derecha regresa cerca de la posición neutra.',
+    BT:'Plano frontal. La pelvis llega a la horizontal y la cadera derecha se aduce un poco para colocar el pie bajo el cuerpo. El gluteus medius derecho se activa y prepara la carga.'},
+ t:{CI:'Plano transverso. El lado derecho de la pelvis está adelantado, cerca de su máxima rotación anterior, lo que alarga el paso.',
+    RC:'Plano transverso. La pelvis empieza a rotar hacia atrás del lado derecho. El muslo y la pierna rotan hacia adentro mientras el pie recibe la carga.',
+    AM:'Plano transverso. La pelvis pasa por la posición neutra mientras el cuerpo avanza sobre el pie. La cadera derecha deja la rotación interna y empieza a rotar hacia afuera.',
+    AT:'Plano transverso. El lado derecho de la pelvis queda atrás, cerca de su máxima rotación posterior, con el miembro derecho detrás del cuerpo. La cadera sigue rotando hacia afuera.',
+    PB:'Plano transverso. La pelvis inicia la rotación hacia adelante del lado derecho, que acompaña el avance del miembro.',
+    BI:'Plano transverso. La pelvis rota hacia adelante del lado derecho y lleva consigo el muslo.',
+    BM:'Plano transverso. La pelvis pasa por la posición neutra con el miembro derecho bajo el cuerpo.',
+    BT:'Plano transverso. La rotación anterior del lado derecho de la pelvis llega a su máximo y adelanta la cadera antes del contacto.'}};
+/* ---------- panel de fase ---------- */
+const $=id=>document.getElementById(id);
+const phName=$('phName'),phRange=$('phRange'),chips=$('chips'),evName=$('evName'),live=$('live'),contra=$('contra');
+let lastPh='',lastChips='',lastEv='',curPh=0;
+function panel(x){
+  const i=phaseIdx(x), p=phaseOf(x), key0=p.k+(x>=100?'n':'');
+  if(key0!==lastPh){lastPh=key0;phName.textContent=x>=100?'Contacto inicial del ciclo siguiente':p.n;
+    phRange.textContent=x>=100?'100 % = 0 % del ciclo siguiente · comienza un nuevo apoyo':p===PCI?'Fase · 0–2 % del ciclo, dentro de la respuesta a la carga · apoyo':`Fase · ${p.a}–${p.b} % del ciclo · ${i<4?'apoyo':'balanceo'}`;
+    $('fxObj').textContent=val(p.obj);$('fxMov').textContent=val(p.mov);$('fxMec').innerHTML=val(p.mec).replace(/(tibialis anterior|gluteus maximus|soleus|gastrocnemius|rectus femoris|iliopsoas)/gi,'<i>$1</i>');
+    $('qTxt').textContent='Pregunta: '+p.q;$('qAns').textContent=p.ans;$('qBox').open=false;
+    [...phEl.children].forEach((c,j)=>c.classList.toggle('on',j===i));
+    $('mPh').textContent=p.n;
+    const pt=$('plTxt'); pt.hidden=plane==='s'; if(plane!=='s') pt.textContent=(PT[plane][x>=100?'CI':p.k])||'';}
+  { const V=F.grfV(x),a=F.grfAP(x);
+    $('grfTxt').innerHTML= V>0.02 ? `<span class="side-r">Fuerza de reacción del piso, derecho</span>: vertical ${fmt(V,2)} × peso; anteroposterior ${fmt(a,2)} × peso${Math.abs(a)<0.02?'':a<0?' (frenado)':' (propulsión)'}.`
+      : `<span class="side-r">Miembro derecho</span> en balanceo: sin fuerza de reacción del piso. Los momentos que persisten aceleran y frenan el miembro.`; }
+  contra.innerHTML=`<span class="side-l">Miembro izquierdo</span>: ${leftName(x)} (${fmt((x+50)%100)} % de su ciclo)`;
+  const e=eventAt(x), et=e?`Evento: ${e.n} (${fmt(e.p)} %)`:'';
+  if(et!==lastEv){lastEv=et;evName.textContent=et;}
+  const on=MUS.filter(mu=>act(mu,x));
+  const key=on.map(mu=>mu.id+fnAt(mu,x)).join()+'|'+sel;
+  if(key!==lastChips){lastChips=key;
+    chips.innerHTML=on.length?on.map(mu=>`<button type="button" class="chip" data-id="${mu.id}" aria-pressed="${mu.id===sel}">${mName(mu)}</button>`).join(''):'<span class="chip none">Ningún grupo de los representados está activo</span>';
+    const m=MUS.find(mu=>mu.id===sel);
+    $('musInfo').innerHTML=m?`<b>${mName(m)}</b> · activo ${winTxt(m)} del ciclo. ${act(m,x)?'Ahora '+fnAt(m,x)+'.':'Ahora inactivo.'}`:(on.length?on.map(mu=>`${mName(mu)}: ${fnAt(mu,x)}`).join('. ')+'.':'');}
+}
+chips.onclick=e=>{const b=e.target.closest('button.chip');if(b)toggleSel(b.dataset.id);};
+function announce(x){const e=eventAt(x);
+  live.textContent=`${fmt(x)} %. ${phaseOf(x).n}${e?'; evento: '+e.n:''}. Cadera ${rdHip(F.hip(x))}, rodilla ${deg(F.knee(x))} flexión, tobillo ${rdAnk(F.ankle(x))}.`;}
+
+/* ---------- reproducción ---------- */
+const playB=$('play'),speedS=$('speed'),scrub=$('scrub'),pctEl=$('pct'),loopC=$('loopPh');
+let x=0,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=null;
+/* alto fijo del panel de texto: se mide el máximo a lo largo del ciclo para que la página no cambie de alto en cada cuadro */
+function fixPanelH(){ const ip=document.getElementById('infoPanel'), x0=x; ip.style.minHeight=''; let mh=0;
+  for(let v=0;v<=100;v+=0.5){ panel(v); mh=Math.max(mh,ip.offsetHeight); }
+  ip.style.minHeight=mh+'px'; panel(x0); }
+function render(){draw(x);ups.forEach(f=>f(x));ecur.setAttribute('x1',EX(x));ecur.setAttribute('x2',EX(x));panel(x);
+  scrub.value=x.toFixed(1);pctEl.textContent=fmt(x)+' %';$('mScrub').value=x.toFixed(1);$('mPct').textContent=fmt(x)+' %';}
+function loop(ts){ if(playing){ if(last!==null){ const dx=((ts-last)/1000)/(T/parseFloat(speedS.value))*100;
+      if(loopC.checked){const p=PH[curPh]; x+=dx; if(x>=p.b) x=p.a+(x-p.b)%(p.b-p.a);}
+      else {x+=dx; if(x>=100)x-=100;} }
+    last=ts; render(); }
+  else last=null; requestAnimationFrame(loop);}
+function setPlaying(p){playing=p;playB.textContent=p?'Pausar':'Reproducir';$('mPlay').textContent=playB.textContent;if(!p)announce(x);}
+playB.textContent=playing?'Pausar':'Reproducir';
+playB.onclick=()=>{if(!playing&&x>=100)x=0;if(!playing&&loopC.checked)curPh=Math.max(0,phaseIdx(x));setPlaying(!playing);};
+$('mPlay').onclick=()=>playB.click();
+loopC.onchange=()=>{curPh=Math.max(0,phaseIdx(x));};
+function stepBy(dir){let n=Math.round(x)+dir; if(n>100)n-=100; if(n<0)n+=100; x=n; render(); setPlaying(false);}
+$('fwd').onclick=()=>stepBy(1); $('back').onclick=()=>stepBy(-1);
+function evJump(dir){const ps=[...new Set(EV.map(e=>e.p))].sort((a,b)=>a-b);
+  let n= dir>0 ? ps.find(p=>p>x+0.01) : [...ps].reverse().find(p=>p<x-0.01);
+  if(n===undefined) n= dir>0 ? ps[1] : ps[ps.length-2];
+  x=n; render(); setPlaying(false);}
+$('evNext').onclick=()=>evJump(1); $('evPrev').onclick=()=>evJump(-1);
+addEventListener('keydown',e=>{const t=e.target.tagName;
+  if(t==='SELECT'||t==='INPUT'||e.altKey||e.ctrlKey||e.metaKey)return;
+  if(e.key==='ArrowRight'){e.preventDefault();e.shiftKey?evJump(1):stepBy(1);} else if(e.key==='ArrowLeft'){e.preventDefault();e.shiftKey?evJump(-1):stepBy(-1);}
+  else if(e.key===' '&&t!=='BUTTON'&&t!=='SUMMARY'){e.preventDefault();playB.click();}});
+scrub.oninput=()=>{x=parseFloat(scrub.value);render();setPlaying(false);};
+$('mScrub').oninput=()=>{x=parseFloat($('mScrub').value);render();setPlaying(false);};
+dbgC.onchange=()=>{$('qa').hidden=!dbgC.checked;render();};
+for(const [c,k] of [[grfC,'cms-grf'],[momC,'cms-mom']]){ const v=store.get(k); if(v!==null) c.checked=v==='1'; c.onchange=()=>{store.set(k,c.checked?'1':'0');render();}; }
+addEventListener('resize',()=>{resize();fixPanelH();render();});
+const fsB=$('fs');
+if(!document.fullscreenEnabled) fsB.hidden=true;
+fsB.onclick=()=>{ if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});} else document.documentElement.requestFullscreen().catch(()=>{fsB.hidden=true;}); };
+document.addEventListener('fullscreenchange',()=>{fsB.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';resize();fixPanelH();render();});
+if(window.matchMedia){matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',render);}
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+/* barra fija en el teléfono cuando la figura sale de la vista */
+if('IntersectionObserver' in window){ new IntersectionObserver(es=>{ $('mini').classList.toggle('show',!es[0].isIntersecting); }).observe(cv); }
+/* vista básica / avanzada */
+const PLN={s:'sagital',f:'frontal',t:'transverso'};
+const BN={s:'Positivo: anteversión pélvica, flexión de cadera y de rodilla, dorsiflexión del tobillo.',
+  f:'Oblicuidad pélvica: positivo, el lado derecho más alto. Cadera: positivo, aducción.',
+  t:'Pelvis: positivo, el lado derecho adelante. Cadera: positivo, rotación interna. Pie: positivo, punta hacia afuera.'};
+function setPlane(pl){ if(!HAS3) pl='s'; plane=pl; store.set('cms-plane',pl);
+  document.body.classList.remove('pl-s','pl-f','pl-t'); document.body.classList.add('pl-'+pl);
+  [...$('plSel').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===pl));
+  $('h1').textContent='Ciclo de marcha en el plano '+PLN[pl]; $('bNote').textContent=BN[pl];
+  $('stage').setAttribute('aria-label',pl==='s'?'Figura que camina en el plano sagital':pl==='f'?'Figura vista desde atrás: pelvis, caderas y miembros inferiores en el plano frontal':'Figura vista desde arriba: rotación de la pelvis y progresión de los pies');
+  $('momLbl').lastChild.textContent=pl==='f'?' Momento de la cadera derecha':' Momentos articulares';
+  lastPh=''; setJoint(jointMem[pl]); resize(); fixPanelH(); render(); }
+[...$('plSel').children].forEach(b=>{ if(!HAS3&&b.dataset.p!=='s'){b.disabled=true;b.title='Disponible con los datos de la base pública (tres velocidades)';} b.onclick=()=>setPlane(b.dataset.p); });
+function setView(adv){document.body.classList.toggle('adv',adv);$('vBas').setAttribute('aria-pressed',!adv);$('vAdv').setAttribute('aria-pressed',adv);store.set('cms-view',adv?'adv':'bas');resize();fixPanelH();render();}
+$('vBas').onclick=()=>setView(false); $('vAdv').onclick=()=>setView(true);
+/* acceso de prueba: ?x=53&dbg=1&v=adv abre en pausa en ese porcentaje */
+const qs=new URLSearchParams(location.search);
+if(qs.has('x')){x=Math.min(100,Math.max(0,parseFloat(qs.get('x'))||0));playing=false;playB.textContent='Reproducir';}
+if(qs.get('dbg')==='1'){dbgC.checked=true;$('qa').hidden=false;}
+if(qs.get('mom')==='1') momC.checked=true;
+setJoint(joint);
+setPlane(qs.get('p')||store.get('cms-plane')||'s');
+setView(qs.get('v')? qs.get('v')==='adv' : store.get('cms-view')==='adv');
+resize();fixPanelH();render();requestAnimationFrame(loop);
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{fixPanelH();render();});
+})();
+</script>
+</body>
+</html>
