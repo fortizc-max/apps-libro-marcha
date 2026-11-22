@@ -241,7 +241,7 @@ body.adv .basic-only{display:none!important}
           </ul>
 
           <p><b>Referencias.</b> Perry J. <i>Gait Analysis: Normal and Pathological Function</i>. Thorofare: SLACK; 1992. · Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4.ª ed. Hoboken: Wiley; 2009. · Neptune RR, Kautz SA, Zajac FE. Contributions of the individual ankle plantar flexors to support, forward progression and swing initiation during walking. <i>J Biomech</i>. 2001;34(11):1387–98. · Francis CA, Lenz AL, Lenhart RL, Thelen DG. The modulation of forward propulsion, vertical support, and center of pressure by the plantarflexors during human walking. <i>Gait Posture</i>. 2013;38(4):993–7. doi:10.1016/j.gaitpost.2013.05.009 · Honert EC, Zelik KE. Inferring muscle-tendon unit power from ankle joint power during the push-off phase of human walking: insights from a multiarticular EMG-driven model. <i>PLoS One</i>. 2016;11(10):e0163169. doi:10.1371/journal.pone.0163169 · Fukuchi CA, Fukuchi RK, Duarte M. A public dataset of overground and treadmill walking kinematics and kinetics in healthy individuals. <i>PeerJ</i>. 2018;6:e4640. doi:10.7717/peerj.4640 · Vaughan CL, Davis BL, O'Connor JC. <i>Dynamics of Human Gait</i>. 2.ª ed. Ciudad del Cabo: Kiboho Publishers; 1999.</p>
-          <p>Versión 6.1 · 22-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
+          <p>Versión 6.2 · 22-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
         </details>
       </section>
     </div>
@@ -296,7 +296,7 @@ POW:{ankle:[-0.02,-0.04,-0.06,-0.08,-0.09,-0.02,0.02,0.00,-0.06,-0.13,-0.19,-0.2
     POW:{ankle:[0.01,0.01,-0.04,-0.18,-0.37,-0.40,-0.23,0.03,0.22,0.28,0.24,0.16,0.08,0.03,-0.01,-0.03,-0.04,-0.06,-0.07,-0.09,-0.11,-0.11,-0.11,-0.10,-0.09,-0.09,-0.11,-0.14,-0.18,-0.22,-0.26,-0.29,-0.33,-0.38,-0.44,-0.48,-0.51,-0.50,-0.45,-0.37,-0.26,-0.12,0.05,0.25,0.49,0.78,1.11,1.49,1.90,2.31,2.70,3.05,3.33,3.49,3.42,2.96,2.11,1.13,0.37,-0.06,-0.11,-0.04,0.01,0.04,0.06,0.06,0.05,0.05,0.04,0.04,0.04,0.04,0.03,0.03,0.03,0.03,0.03,0.02,0.02,0.02,0.02,0.02,0.02,0.02,0.01,0.01,0.01,0.00,-0.00,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.00,0.00,-0.00,-0.00,-0.00],knee:[0.45,0.42,0.35,0.20,0.05,-0.09,-0.29,-0.62,-1.00,-1.30,-1.38,-1.22,-0.84,-0.36,0.08,0.40,0.58,0.66,0.67,0.66,0.65,0.63,0.60,0.53,0.43,0.32,0.20,0.09,0.00,-0.06,-0.11,-0.14,-0.15,-0.15,-0.14,-0.12,-0.09,-0.05,-0.02,0.01,0.05,0.08,0.12,0.15,0.18,0.21,0.23,0.22,0.19,0.11,-0.01,-0.17,-0.36,-0.59,-0.82,-0.99,-1.03,-0.88,-0.60,-0.29,-0.20,-0.29,-0.42,-0.53,-0.55,-0.51,-0.43,-0.33,-0.25,-0.18,-0.11,-0.07,-0.03,-0.00,0.01,0.02,0.02,0.01,-0.01,-0.03,-0.06,-0.10,-0.14,-0.19,-0.25,-0.32,-0.41,-0.53,-0.69,-0.90,-1.13,-1.32,-1.45,-1.46,-1.34,-1.13,-0.85,-0.51,-0.16,0.01],hip:[0.30,0.40,0.58,0.72,0.76,0.73,0.64,0.52,0.44,0.43,0.50,0.65,0.85,1.04,1.18,1.22,1.15,1.01,0.86,0.73,0.63,0.58,0.54,0.49,0.43,0.34,0.25,0.16,0.07,-0.00,-0.06,-0.11,-0.14,-0.16,-0.17,-0.18,-0.21,-0.25,-0.29,-0.35,-0.43,-0.52,-0.61,-0.69,-0.76,-0.80,-0.80,-0.76,-0.66,-0.52,-0.34,-0.12,0.10,0.34,0.58,0.81,0.99,1.03,0.93,0.81,0.76,0.81,0.97,1.15,1.28,1.34,1.30,1.16,0.95,0.70,0.47,0.27,0.13,0.05,0.01,-0.00,0.00,0.01,0.01,0.00,-0.01,-0.01,-0.03,-0.04,-0.05,-0.06,-0.06,-0.05,-0.04,-0.03,0.01,0.06,0.11,0.16,0.18,0.17,0.14,0.10,0.07,0.06]}}
 };
 const FAM=['S','C','F'];
-const KEY=(()=>{const q=new URLSearchParams(location.search).get('d');if(q&&DS[q])return q;try{const v=localStorage.getItem('cms-ds');if(v&&DS[v])return v;}catch(e){}return 'lab';})();
+const KEY=(()=>{const q=new URLSearchParams(location.search).get('d');if(q&&DS[q])return q;try{const v=localStorage.getItem('cms-ds2');if(v&&DS[v])return v;}catch(e){}return 'C';})();
 const CUR=DS[KEY];
 const NODES=CUR.NODES, MOM_ANKLE=CUR.MA, MOM_KNEE=CUR.MK, MOM_HIP=CUR.MH, GRF_V=CUR.GV, GRF_AP=CUR.GA, POW_LAB=CUR.POW;
 function makeCR(y){ const N=y.length,h=100/N;
@@ -411,7 +411,7 @@ document.getElementById('powSrc').textContent= KEY==='lab' ? 'la del sujeto, med
 { const box=document.getElementById('dsSel');
   for(const k of ['lab','S','C','F']){ const b=document.createElement('button'); b.type='button';
     b.textContent= k==='lab' ? 'Laboratorio' : `${DS[k].label} ${fmt(DS[k].v,1)} m/s`; b.setAttribute('aria-pressed',k===KEY);
-    b.onclick=()=>{ if(k===KEY) return; try{localStorage.setItem('cms-ds',k);}catch(e){} const q=new URLSearchParams(location.search); q.set('d',k); location.search=q.toString(); };
+    b.onclick=()=>{ if(k===KEY) return; try{localStorage.setItem('cms-ds2',k);}catch(e){} const q=new URLSearchParams(location.search); q.set('d',k); location.search=q.toString(); };
     box.appendChild(b); } }
 document.getElementById('tvPct').textContent=fmt(QA.tv);
 document.getElementById('muTO').textContent=fmt(MU_TO);
