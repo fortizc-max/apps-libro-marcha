@@ -205,7 +205,7 @@ body.adv .basic-only{display:none!important}
 
       <section class="panel adv-only" id="grfSec">
         <h2>Fuerza de reacción del piso</h2>
-        <p class="note">En múltiplos del peso corporal. <span class="side-r">Derecho</span>, <span class="side-l">izquierdo</span> y, en gris, la suma vertical de los dos pies: supera el peso en el doble apoyo, cuando el centro de masa frena su descenso. Anteroposterior: negativo, frenado; positivo, propulsión. Datos medidos, sin reescalar. <span class="ghostNote">Gris: el miembro derecho a las otras dos velocidades, punteada la menor y a trazos la mayor.</span></p>
+        <p class="note">En múltiplos del peso corporal, a lo largo del ciclo del pie <span class="side-r">derecho</span>. El pie <span class="side-l">izquierdo</span> repite la misma curva con medio ciclo de desfase: apoya desde el 50 % y despega hacia el <span class="dcTxt"></span> % del ciclo siguiente. Bandas grises: los dos dobles apoyos, cuando un pie recibe la carga y el otro la entrega; la línea negra a trazos es la suma de los dos pies, que supera el peso mientras el centro de masa frena su descenso. Anteroposterior: negativo, frenado; positivo, propulsión. Datos medidos, sin reescalar.</p>
         <div class="grid" id="grfPlots"></div>
       </section>
 
@@ -241,7 +241,7 @@ body.adv .basic-only{display:none!important}
           </ul>
 
           <p><b>Referencias.</b> Perry J. <i>Gait Analysis: Normal and Pathological Function</i>. Thorofare: SLACK; 1992. · Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4.ª ed. Hoboken: Wiley; 2009. · Neptune RR, Kautz SA, Zajac FE. Contributions of the individual ankle plantar flexors to support, forward progression and swing initiation during walking. <i>J Biomech</i>. 2001;34(11):1387–98. · Francis CA, Lenz AL, Lenhart RL, Thelen DG. The modulation of forward propulsion, vertical support, and center of pressure by the plantarflexors during human walking. <i>Gait Posture</i>. 2013;38(4):993–7. doi:10.1016/j.gaitpost.2013.05.009 · Honert EC, Zelik KE. Inferring muscle-tendon unit power from ankle joint power during the push-off phase of human walking: insights from a multiarticular EMG-driven model. <i>PLoS One</i>. 2016;11(10):e0163169. doi:10.1371/journal.pone.0163169 · Fukuchi CA, Fukuchi RK, Duarte M. A public dataset of overground and treadmill walking kinematics and kinetics in healthy individuals. <i>PeerJ</i>. 2018;6:e4640. doi:10.7717/peerj.4640 · Vaughan CL, Davis BL, O'Connor JC. <i>Dynamics of Human Gait</i>. 2.ª ed. Ciudad del Cabo: Kiboho Publishers; 1999.</p>
-          <p>Versión 6.2 · 22-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
+          <p>Versión 6.3 · 22-11-2026. Instituto Roosevelt · Universidad Nacional de Colombia.</p>
         </details>
       </section>
     </div>
@@ -402,7 +402,7 @@ const QA=(function(){ let ds=0,pen=0,flat=0,clr=1e9,Dmin=1e9,Dmax=-1e9;
 document.getElementById('qaGrf').textContent=fmt(QA.grf);
 document.getElementById('adjPct').textContent=fmt(QA.adj);
 document.querySelectorAll('.toTxt').forEach(e=>e.textContent=fmt(TO));
-document.getElementById('dcPct').textContent=fmt(TO-50); document.getElementById('ffPct').textContent=fmt(FF); document.getElementById('hrPct').textContent=fmt(HR);
+document.getElementById('dcPct').textContent=fmt(TO-50); document.querySelectorAll('.dcTxt').forEach(e=>e.textContent=fmt(TO-50)); document.getElementById('ffPct').textContent=fmt(FF); document.getElementById('hrPct').textContent=fmt(HR);
 document.querySelectorAll('.ghostNote').forEach(e=>e.hidden=!GH.length);
 document.getElementById('opt1x').textContent=`1× (ciclo de ${fmt(T,2)} s)`;
 document.getElementById('srcTxt').textContent= KEY==='lab' ? 'Marcha de un adulto sano del laboratorio, en un modelo plano; no representa valores de referencia.'
@@ -637,17 +637,20 @@ function plot(host,cfg){
   const VW=320,VH=cfg.vh||140,l=34,r=8,t=8,b=20, X=p=>l+p/100*(VW-l-r), Y=v=>t+(cfg.max-v)/(cfg.max-cfg.min)*(VH-t-b);
   const s=el('svg',{viewBox:`0 0 ${VW} ${VH}`,role:'img','aria-label':cfg.aria},box);
   el('rect',{x:X(0),y:t,width:X(TO)-X(0),height:VH-t-b,fill:'var(--stance)'},s);
+  if(cfg.dsBands) for(const [p0,p1] of [[0,TO-50],[50,TO]]){ el('rect',{x:X(p0),y:t,width:X(p1)-X(p0),height:VH-t-b,fill:'var(--muted)','fill-opacity':.13},s);
+    el('text',{x:X(p0)+3,y:t+10,'text-anchor':'start',style:'font-size:8.5px;fill:var(--muted)'},s).textContent='doble apoyo'; }
   for(const v of cfg.ticks){el('line',{x1:l,x2:VW-r,y1:Y(v),y2:Y(v),stroke:'var(--line)','stroke-width':v===0?1:.5},s);
     el('text',{x:l-4,y:Y(v)+3,'text-anchor':'end'},s).textContent=fmt(v,cfg.dec||0);}
   for(const p of [0,20,40,60,80,100]) el('text',{x:X(p),y:VH-6,'text-anchor':'middle'},s).textContent=p+'%';
   el('line',{x1:X(TO),x2:X(TO),y1:t,y2:VH-b,stroke:'var(--muted)','stroke-dasharray':'3 3','stroke-width':.8},s);
-  for(const g of GH) for(const se of cfg.series){ if(!GF[g][se.k]) continue; let d='';
+  for(const g of (cfg.noGhost?[]:GH)) for(const se of cfg.series){ if(!GF[g][se.k]) continue; let d='';
     for(let p=0;p<=100;p+=1)d+=(p?'L':'M')+X(p).toFixed(1)+','+Y(GF[g][se.k](p)).toFixed(1);
     el('path',{d,fill:'none',stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':FAM.indexOf(g)<FAM.indexOf(KEY)?'2 2':'6 3',opacity:.75},s); }
   const dots=[];
-  for(const se of cfg.series){let d='';for(let p=0;p<=100;p+=0.5)d+=(p?'L':'M')+X(p).toFixed(1)+','+Y(F[se.k](p)).toFixed(1);
-    el('path',{d,fill:'none',stroke:`var(${se.c})`,'stroke-width':2},s);
-    dots.push({k:se.k,c:el('circle',{r:4,fill:`var(${se.c})`,stroke:'var(--surface)','stroke-width':1.5},s)});}
+  for(const se of cfg.series){let d='',pen=false;for(let p=0;p<=100;p+=0.5){ const on=!se.ds||(F.grfV(p)>0.005&&F.grfVL(p)>0.005);
+      if(on){d+=(pen?'L':'M')+X(p).toFixed(1)+','+Y(F[se.k](p)).toFixed(1);} pen=on; }
+    el('path',{d,fill:'none',stroke:`var(${se.c})`,'stroke-width':se.w||2,'stroke-dasharray':se.dash||'none'},s);
+    if(!se.ds) dots.push({k:se.k,c:el('circle',{r:4,fill:`var(${se.c})`,stroke:'var(--surface)','stroke-width':1.5},s)});}
   const cur=el('line',{y1:t,y2:VH-b,stroke:'var(--cursor)','stroke-width':1},s);
   host.appendChild(box);
   return x=>{ if(box.offsetParent===null) return;
@@ -691,9 +694,9 @@ for(const r of KR){ const row=document.createElement('div');row.className='kin-r
   ups.push(plot(b,{title:'Potencia (W/kg)',aria:'Potencia neta de '+r.n.toLowerCase(),min:r.pm[0],max:r.pm[1],ticks:r.pt,dec:1,series:[{k:r.p,c:r.c}],read:x=>{const v=F[r.p](x);return fmt(v,1)+(Math.abs(v)<0.05?'':v>0?' generación':' absorción');}}));}
 
 const gHost=document.getElementById('grfPlots');
-ups.push(plot(gHost,{title:'Vertical (× peso)',aria:'Fuerza de reacción vertical de cada pie y su suma',min:0,max:1.6,ticks:[0,0.5,1,1.5],dec:1,
-  series:[{k:'grfVsum',c:'--muted'},{k:'grfVL',c:'--left'},{k:'grfV',c:'--right'}],read:x=>'D '+fmt(F.grfV(x),2)+' · I '+fmt(F.grfVL(x),2)}));
-ups.push(plot(gHost,{title:'Anteroposterior (× peso)',aria:'Fuerza de reacción anteroposterior de cada pie',min:-0.3,max:0.3,ticks:[-0.2,0,0.2],dec:1,
+ups.push(plot(gHost,{title:'Vertical (× peso)',aria:'Fuerza de reacción vertical de cada pie y su suma en el doble apoyo',min:0,max:1.6,ticks:[0,0.5,1,1.5],dec:1,noGhost:1,dsBands:1,
+  series:[{k:'grfVL',c:'--left'},{k:'grfV',c:'--right'},{k:'grfVsum',c:'--ink',ds:1,w:1.5,dash:'4 3'}],read:x=>'D '+fmt(F.grfV(x),2)+' · I '+fmt(F.grfVL(x),2)}));
+ups.push(plot(gHost,{title:'Anteroposterior (× peso)',aria:'Fuerza de reacción anteroposterior de cada pie',min:-0.3,max:0.3,ticks:[-0.2,0,0.2],dec:1,noGhost:1,dsBands:1,
   series:[{k:'grfAPL',c:'--left'},{k:'grfAP',c:'--right'}],read:x=>'D '+fmt(F.grfAP(x),2)+' · I '+fmt(F.grfAPL(x),2)}));
 
 /* ---------- temporalidad muscular ---------- */
